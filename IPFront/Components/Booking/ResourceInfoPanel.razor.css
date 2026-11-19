@@ -1,0 +1,109 @@
+.resource-info-card {
+    background-color: #ffffff;
+    border: 1px solid #e4e4e7;
+    border-radius: 10px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.info-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.eyebrow-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #71717a;
+}
+
+.resource-title {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.25;
+}
+
+.resource-description {
+    margin: 0.25rem 0 0 0;
+    font-size: 0.875rem;
+    color: #52525b;
+    line-height: 1.5;
+}
+
+.approval-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    align-self: flex-start;
+    margin-top: 0.5rem;
+    padding: 0.4rem 0.75rem;
+    background-color: #f4f4f5;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #3f3f46;
+}
+
+.badge-icon {
+    width: 16px;
+    height: 16px;
+    opacity: 0.7;
+}
+
+.section-divider {
+    border: none;
+    border-top: 1px solid #f4f4f5;
+    margin: 0;
+}
+
+.section-heading {
+    margin: 0 0 0.25rem 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.specs-list {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.spec-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    font-size: 0.85rem;
+}
+
+.spec-key {
+    color: #71717a;
+}
+
+.spec-value {
+    margin: 0;
+    font-weight: 500;
+    text-align: right;
+}
+
+.location-primary {
+    margin: 0;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.rules-list {
+    margin: 0;
+    padding-left: 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: #52525b;
+}

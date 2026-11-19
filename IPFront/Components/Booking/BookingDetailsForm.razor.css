@@ -1,0 +1,177 @@
+.workspace-card {
+    background-color: #ffffff;
+    border: 1px solid #e4e4e7;
+    border-radius: 10px;
+    padding: 1.5rem;
+}
+
+.card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+    .card-header h2 {
+        margin: 0;
+        font-size: 1.05rem;
+        font-weight: 600;
+    }
+
+.muted-meta {
+    font-size: 0.8rem;
+    color: #71717a;
+}
+
+.booking-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+}
+
+.form-row-three {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+}
+
+.form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+    .form-field label {
+        font-size: 0.8rem;
+        font-weight: 500;
+        color: #3f3f46;
+    }
+
+.form-input,
+.form-select,
+.form-textarea {
+    width: 100%;
+    padding: 0.55rem 0.75rem;
+    border: 1px solid #d4d4d8;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    background-color: #ffffff;
+    color: #18181b;
+    box-sizing: border-box;
+}
+
+.input-with-icon {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.field-icon,
+.inline-icon {
+    width: 16px;
+    height: 16px;
+    opacity: 0.7;
+}
+
+.input-with-icon .field-icon {
+    position: absolute;
+    left: 0.65rem;
+    pointer-events: none;
+}
+
+.input-with-icon .form-select {
+    padding-left: 2.1rem;
+}
+
+.form-row-bottom {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.attendees-field {
+    max-width: 240px;
+}
+
+.duration-summary {
+    font-size: 0.875rem;
+    color: #3f3f46;
+    white-space: nowrap;
+    margin-left: auto;
+    padding-bottom: 0.45rem;
+}
+
+.submission-feedback {
+    padding: 0.7rem 0.9rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+    .submission-feedback.error {
+        background-color: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #b91c1c;
+    }
+
+    .submission-feedback.success {
+        background-color: #ecfdf5;
+        border: 1px solid #a7f3d0;
+        color: #065f46;
+    }
+
+.feedback-link {
+    color: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+    white-space: nowrap;
+}
+
+.form-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid #f4f4f5;
+}
+
+.approval-note {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.8rem;
+    color: #71717a;
+}
+
+.btn-submit {
+    padding: 0.7rem 1.35rem;
+    border: none;
+    border-radius: 8px;
+    background-color: #27272a;
+    color: #ffffff;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+    .btn-submit:hover:not(:disabled) {
+        background-color: #18181b;
+    }
+
+    .btn-submit:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+@media (max-width: 960px) {
+    .form-row-three {
+        grid-template-columns: 1fr;
+    }
+}

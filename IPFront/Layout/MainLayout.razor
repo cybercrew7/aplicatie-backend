@@ -1,0 +1,25 @@
+﻿@inherits LayoutComponentBase
+@inject CurrentUserService CurrentUserService
+
+<div class="unilab-shell">
+    <SideNav />
+
+    <div class="main-wrapper">
+        <header class="top-header">
+            <UserAvatar dateUtilizator="currentUser" />
+        </header>
+
+        <main class="page-body">
+            @Body
+        </main>
+    </div>
+</div>
+
+@code {
+    private UserMinDTO? currentUser;
+
+    protected override async Task OnInitializedAsync()
+    {
+        currentUser = await CurrentUserService.GetCurrentUserAsync();
+    }
+}

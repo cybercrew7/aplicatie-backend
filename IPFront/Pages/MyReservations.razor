@@ -1,0 +1,275 @@
+﻿@page "/my-reservations"
+@inject NavigationManager NavigationManager
+@inject ReservationApiClient ReservationApi
+@inject ResourceApiClient ResourceApi
+@inject CurrentUserService CurrentUserService
+
+<PageTitle>My Reservations - UniLab</PageTitle>
+
+<div class="content-area">
+    <div class="breadcrumbs">My bookings &nbsp;/&nbsp; My reservations</div>
+
+    <div class="page-header-row">
+        <div>
+            <h1 class="page-title">My Reservations</h1>
+            <p class="page-subtitle">Manage your lab bookings and track approvals.</p>
+        </div>
+        <div class="page-header-actions">
+            <button type="button" class="btn-primary-dark" @onclick="OnBookResourceClicked">
+                Book a resource
+            </button>
+            <span class="current-timestamp">@DateTime.Now.ToString("ddd, dd MMM yyyy · HH:mm")</span>
+        </div>
+    </div>
+
+    <ReservationStatsGrid ActiveCount="UpcomingReservations.Count"
+                          TodaySessionsCount="TodayUpcomingCount"
+                          PendingCount="PendingReservations.Count"
+                          CompletedCount="CompletedCount" />
+
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert-error">@errorMessage</div>
+    }
+
+    <section class="table-card">
+        <div class="tabs-bar">
+            <button type="button"
+                    class="tab-btn @(activeTab == TabUpcoming ? "active" : "")"
+                    @onclick="() => activeTab = TabUpcoming">
+                <span>Upcoming</span>
+                <span class="tab-badge @(activeTab == TabUpcoming ? "badge-dark" : "badge-light")">@UpcomingReservations.Count</span>
+            </button>
+
+            <button type="button"
+                    class="tab-btn @(activeTab == TabPending ? "active" : "")"
+                    @onclick="() => activeTab = TabPending">
+                <span>Pending</span>
+                <span class="tab-badge @(activeTab == TabPending ? "badge-dark" : "badge-light")">@PendingReservations.Count</span>
+            </button>
+
+            <button type="button"
+                    class="tab-btn @(activeTab == TabHistory ? "active" : "")"
+                    @onclick="() => activeTab = TabHistory">
+                <span>History</span>
+                <span class="tab-badge @(activeTab == TabHistory ? "badge-dark" : "badge-light")">@HistoryReservations.Count</span>
+            </button>
+        </div>
+
+        <div class="table-toolbar">
+            <div>
+                <h2 class="table-title">@TabTitle</h2>
+                <p class="table-subtitle">@TabSubtitle</p>
+            </div>
+
+            <div class="toolbar-controls">
+                <div class="search-box">
+                    <img src="images/icon-search.svg" alt="" class="search-icon" />
+                    <input type="text"
+                           placeholder="Search reservations"
+                           @bind="searchQuery"
+                           @bind:event="oninput" />
+                </div>
+
+                <div class="select-wrapper">
+                    <select @bind="selectedCategory">
+                        <option value="">All categories</option>
+                        @foreach (var category in AvailableCategories)
+                        {
+                            <option value="@category">@category</option>
+                        }
+                    </select>
+                    <img src="images/icon-down-arrow.svg" alt="" class="select-chevron" />
+                </div>
+            </div>
+        </div>
+
+        @if (isLoading)
+        {
+            <div class="state-message">Loading reservations...</div>
+        }
+        else
+        {
+            <ReservationTable Reservations="FilteredReservations"
+                              ResourcesById="resourcesById"
+                              CancelingReservationId="cancelingReservationId"
+                              OnCancelRequested="HandleCancelAsync" />
+        }
+
+        <div class="table-footer">
+            <span>Showing @FilteredReservations.Count of @ActiveTabReservations.Count reservations</span>
+            <span>All times local</span>
+        </div>
+    </section>
+
+    <section class="info-banner">
+        <div class="info-banner-left">
+            <img src="images/icon-exclamation.svg" alt="" class="info-icon" />
+            <div>
+                <div class="info-title">Before your session</div>
+                <div class="info-desc">Cancel as early as possible if your plans change to free the slot for others.</div>
+            </div>
+        </div>
+    </section>
+</div>
+
+@code {
+    private const string TabUpcoming = "Upcoming";
+    private const string TabPending = "Pending";
+    private const string TabHistory = "History";
+
+    private List<ReservationFullDTO> allReservations = [];
+    private Dictionary<int, ResourcesFullDTO> resourcesById = new();
+
+    private string activeTab = TabUpcoming;
+    private string searchQuery = string.Empty;
+    private string selectedCategory = string.Empty;
+
+    private bool isLoading = true;
+    private int? cancelingReservationId;
+    private string? errorMessage;
+
+    private List<ReservationFullDTO> UpcomingReservations => allReservations
+        .Where(r => r.status_rezervare == ReservationStatus.CONFIRMED && r.end_time > DateTime.Now)
+        .OrderBy(r => r.start_time)
+        .ToList();
+
+    private List<ReservationFullDTO> PendingReservations => allReservations
+        .Where(r => r.status_rezervare == ReservationStatus.PENDING && r.end_time > DateTime.Now)
+        .OrderBy(r => r.start_time)
+        .ToList();
+
+    private List<ReservationFullDTO> HistoryReservations => allReservations
+        .Where(r => r.end_time <= DateTime.Now
+                    || r.status_rezervare == ReservationStatus.CANCELED
+                    || r.status_rezervare == ReservationStatus.REJECTED)
+        .OrderByDescending(r => r.start_time)
+        .ToList();
+
+    private int TodayUpcomingCount => UpcomingReservations.Count(r => r.start_time.Date == DateTime.Today);
+
+    private int CompletedCount => allReservations
+        .Count(r => r.status_rezervare == ReservationStatus.CONFIRMED && r.end_time <= DateTime.Now);
+
+    private List<ReservationFullDTO> ActiveTabReservations => activeTab switch
+    {
+        TabPending => PendingReservations,
+        TabHistory => HistoryReservations,
+        _ => UpcomingReservations
+    };
+
+    private List<string> AvailableCategories => allReservations
+        .Select(r => resourcesById.TryGetValue(r.resourceId, out var res)
+            ? ResourceDisplayHelper.GetCategory(res)
+            : "Resource")
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(c => c, StringComparer.OrdinalIgnoreCase)
+        .ToList();
+
+    private List<ReservationFullDTO> FilteredReservations
+    {
+        get
+        {
+            IEnumerable<ReservationFullDTO> query = ActiveTabReservations;
+
+            if (!string.IsNullOrWhiteSpace(selectedCategory))
+            {
+                query = query.Where(r =>
+                {
+                    var cat = resourcesById.TryGetValue(r.resourceId, out var res)
+                        ? ResourceDisplayHelper.GetCategory(res)
+                        : "Resource";
+                    return string.Equals(cat, selectedCategory, StringComparison.OrdinalIgnoreCase);
+                });
+            }
+
+            if (!string.IsNullOrWhiteSpace(searchQuery))
+            {
+                var term = searchQuery.Trim();
+                query = query.Where(r =>
+                {
+                    resourcesById.TryGetValue(r.resourceId, out var res);
+                    var name = res?.resource_name ?? $"Resource #{r.resourceId}";
+                    var location = res is not null
+                        ? ResourceDisplayHelper.GetLocation(res, resourcesById)
+                        : string.Empty;
+                    return name.Contains(term, StringComparison.OrdinalIgnoreCase)
+                           || $"BK-{r.id}".Contains(term, StringComparison.OrdinalIgnoreCase)
+                           || location.Contains(term, StringComparison.OrdinalIgnoreCase)
+                           || (r.purpose?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false);
+                });
+            }
+
+            return query.ToList();
+        }
+    }
+
+    private string TabTitle => activeTab switch
+    {
+        TabPending => "Pending reservations",
+        TabHistory => "Reservation history",
+        _ => "Upcoming reservations"
+    };
+
+    private string TabSubtitle => activeTab switch
+    {
+        TabPending => "Reservations awaiting administrator approval.",
+        TabHistory => "Completed, canceled, and rejected reservations.",
+        _ => "Approved reservations, ordered by next session."
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            var reservationsTask = ReservationApi.getAllReservationByUserIdAsync(CurrentUserService.UserId);
+            var resourcesTask = ResourceApi.GetAllResourcesAsync();
+            await Task.WhenAll(reservationsTask, resourcesTask);
+
+            allReservations = (await reservationsTask).ToList();
+            resourcesById = (await resourcesTask).ToDictionary(r => r.Id);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Could not load reservations: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void OnBookResourceClicked()
+    {
+        NavigationManager.NavigateTo("/catalog");
+    }
+
+    private async Task HandleCancelAsync(ReservationFullDTO reservation)
+    {
+        cancelingReservationId = reservation.id;
+        errorMessage = null;
+
+        try
+        {
+            var dto = new ReservationCancelDTO(reservation.id, reservation.resourceId, reservation.userId);
+            await ReservationApi.CancelReservationAsync(dto);
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Could not cancel reservation BK-{reservation.id}: {ex.Message}";
+        }
+        finally
+        {
+            cancelingReservationId = null;
+        }
+    }
+}

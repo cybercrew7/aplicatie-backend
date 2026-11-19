@@ -1,0 +1,169 @@
+<section class="workspace-card">
+    <div class="card-header">
+        <h2>Weekly availability</h2>
+        <span class="muted-meta">Local time</span>
+    </div>
+
+    <div class="calendar-toolbar">
+        <div class="week-navigator">
+            <button type="button"
+                    class="icon-btn"
+                    aria-label="Previous week"
+                    @onclick="() => OnWeekChanged.InvokeAsync(-7)">
+                &lsaquo;
+            </button>
+            <span class="week-range-label">@WeekRangeLabel</span>
+            <button type="button"
+                    class="icon-btn"
+                    aria-label="Next week"
+                    @onclick="() => OnWeekChanged.InvokeAsync(7)">
+                &rsaquo;
+            </button>
+        </div>
+
+        <div class="calendar-legend">
+            <span class="legend-item">
+                <span class="legend-swatch available"></span> Available
+            </span>
+            <span class="legend-item">
+                <span class="legend-swatch blocked"></span> Blocked
+            </span>
+            <span class="legend-item">
+                <span class="legend-swatch selected"></span> Selected
+            </span>
+        </div>
+    </div>
+
+    <div class="schedule-grid-wrapper">
+        <table class="schedule-grid">
+            <thead>
+                <tr>
+                    <th class="time-col-header">TIME</th>
+                    @foreach (var day in WeekDays)
+                    {
+                        var isSelectedDay = SelectedDate.Date == day.Date;
+                        <th class="day-col-header @(isSelectedDay ? "selected-day" : string.Empty)">
+                            <span class="day-name">@day.ToString("ddd")</span>
+                            <strong class="day-number">@day.ToString("dd")</strong>
+                        </th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var slot in TimeSlots)
+                {
+                    <tr>
+                        <td class="time-cell">@slot.ToString(@"hh\:mm")</td>
+                        @foreach (var day in WeekDays)
+                        {
+                            var isBlocked = IsSlotBlocked(day, slot);
+                            var isSelected = !isBlocked && IsSlotSelected(day, slot);
+                            var cellCss = isSelected
+                                ? "slot-selected"
+                                : (isBlocked ? "slot-blocked" : "slot-available");
+
+                            <td class="slot-cell @cellCss"
+                                @onclick="() => HandleSlotClickAsync(day, slot, isBlocked)">
+                                @if (isSelected && slot == SelectedStartTime)
+                                {
+                                    <div class="slot-label-group">
+                                        <span>Selected</span>
+                                        <small>@SelectedStartTime.ToString(@"hh\:mm")–@SelectedEndTime.ToString(@"hh\:mm")</small>
+                                    </div>
+                                }
+                                else if (isBlocked && IsBooked(day, slot))
+                                {
+                                    <span class="slot-label">Booked</span>
+                                }
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="calendar-footer">
+        <span>Click an available slot to start, or click a later slot on the same day to extend.</span>
+        <span>Closes at 20:00</span>
+    </div>
+</section>
+
+@code {
+    [Parameter] public DateTime WeekStartDate { get; set; }
+    [Parameter] public IReadOnlyList<TimeSpan> TimeSlots { get; set; } = [];
+    [Parameter] public IReadOnlyList<ReservationFullDTO> Reservations { get; set; } = [];
+    [Parameter] public int MaxConcurrentBookings { get; set; } = 1;
+
+    [Parameter] public DateTime SelectedDate { get; set; }
+    [Parameter] public TimeSpan SelectedStartTime { get; set; }
+    [Parameter] public TimeSpan SelectedEndTime { get; set; }
+
+    [Parameter] public EventCallback<int> OnWeekChanged { get; set; }
+    [Parameter] public EventCallback<(DateTime Date, TimeSpan Start, TimeSpan End)> OnSlotRangeSelected { get; set; }
+
+    private List<DateTime> WeekDays => Enumerable.Range(0, 7)
+        .Select(offset => WeekStartDate.Date.AddDays(offset))
+        .ToList();
+
+    private string WeekRangeLabel
+    {
+        get
+        {
+            var end = WeekStartDate.Date.AddDays(6);
+            return WeekStartDate.Month == end.Month
+                ? $"{WeekStartDate:dd}–{end:dd MMM yyyy}"
+                : $"{WeekStartDate:dd MMM} – {end:dd MMM yyyy}";
+        }
+    }
+
+    private bool IsBooked(DateTime day, TimeSpan slot)
+    {
+        var slotStart = day.Date.Add(slot);
+        var slotEnd = slotStart.AddHours(1);
+        var limit = Math.Max(1, MaxConcurrentBookings);
+
+        var count = Reservations.Count(r =>
+            r.status_rezervare != ReservationStatus.CANCELED
+            && r.status_rezervare != ReservationStatus.REJECTED
+            && r.start_time < slotEnd
+            && r.end_time > slotStart);
+
+        return count >= limit;
+    }
+
+    private bool IsSlotBlocked(DateTime day, TimeSpan slot)
+    {
+        var slotStart = day.Date.Add(slot);
+        return slotStart < DateTime.Now || IsBooked(day, slot);
+    }
+
+    private bool IsSlotSelected(DateTime day, TimeSpan slot)
+        => day.Date == SelectedDate.Date
+           && slot >= SelectedStartTime
+           && slot < SelectedEndTime;
+
+    private async Task HandleSlotClickAsync(DateTime day, TimeSpan slot, bool isBlocked)
+    {
+        if (isBlocked)
+        {
+            return;
+        }
+
+        // Clicking a later slot on the already-selected day extends the range if no slot in between is blocked.
+        if (day.Date == SelectedDate.Date && slot > SelectedStartTime)
+        {
+            var hasBlockedBetween = TimeSlots
+                .Where(t => t >= SelectedStartTime && t <= slot)
+                .Any(t => IsSlotBlocked(day, t));
+
+            if (!hasBlockedBetween)
+            {
+                await OnSlotRangeSelected.InvokeAsync((day.Date, SelectedStartTime, slot.Add(TimeSpan.FromHours(1))));
+                return;
+            }
+        }
+
+        await OnSlotRangeSelected.InvokeAsync((day.Date, slot, slot.Add(TimeSpan.FromHours(1))));
+    }
+}

@@ -1,0 +1,53 @@
+<article class="resource-card">
+    <div class="card-media">
+        @if (!string.IsNullOrWhiteSpace(Resource.image_url))
+        {
+            <img src="@Resource.image_url" alt="@Resource.resource_name" class="resource-image" />
+        }
+        else
+        {
+            <div class="image-placeholder">
+                <span>RESOURCE IMAGE</span>
+            </div>
+        }
+    </div>
+
+    <div class="card-body">
+        <div class="card-meta-row">
+            <span class="resource-category">@Category</span>
+            <StatusBadge Label="@StatusLabel" Variant="@StatusVariant" />
+        </div>
+
+        <h3 class="resource-title">@Resource.resource_name</h3>
+        <p class="resource-id">ID: @Code</p>
+        <p class="resource-location">@Location</p>
+
+        @if (Resource.capacity.HasValue)
+        {
+            <p class="resource-note">Capacity: @Resource.capacity people</p>
+        }
+        else if (!string.IsNullOrWhiteSpace(Resource.equipment_model))
+        {
+            <p class="resource-note">Model: @Resource.equipment_model</p>
+        }
+
+        <button type="button"
+                class="btn-book"
+                disabled="@(!CanBook)"
+                @onclick="() => OnBookClicked.InvokeAsync(Resource.Id)">
+            Book Resource
+        </button>
+    </div>
+</article>
+
+@code {
+    [Parameter, EditorRequired] public ResourcesFullDTO Resource { get; set; } = default!;
+    [Parameter] public string Location { get; set; } = "Campus Lab";
+    [Parameter] public EventCallback<int> OnBookClicked { get; set; }
+
+    private string Category => ResourceDisplayHelper.GetCategory(Resource);
+    private string Code => ResourceDisplayHelper.GetCode(Resource);
+    private bool CanBook => Resource.status == Status.ACTIVE;
+    private string StatusLabel => CanBook ? "Available" : "Inactive";
+    private string StatusVariant => CanBook ? "available" : "inactive";
+}

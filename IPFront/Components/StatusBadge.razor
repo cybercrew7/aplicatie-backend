@@ -1,0 +1,25 @@
+<span class="status-badge @VariantCss">
+    @if (!string.IsNullOrWhiteSpace(IconSrc))
+    {
+        <img src="@IconSrc" alt="" class="badge-icon" />
+    }
+    else
+    {
+        <span class="badge-dot"></span>
+    }
+    <span>@Label</span>
+</span>
+
+@code {
+    [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
+    [Parameter] public string Variant { get; set; } = "neutral";
+    [Parameter] public string? IconSrc { get; set; }
+
+    private string VariantCss => Variant switch
+    {
+        "available" or "confirmed" => "variant-positive",
+        "pending" => "variant-pending",
+        "canceled" or "rejected" or "inactive" => "variant-muted",
+        _ => "variant-neutral"
+    };
+}

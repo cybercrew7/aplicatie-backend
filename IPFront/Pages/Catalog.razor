@@ -1,0 +1,221 @@
+﻿@page "/catalog"
+@inject NavigationManager NavigationManager
+@inject ResourceApiClient ResourceApi
+
+<PageTitle>Resource Catalog - UniLab</PageTitle>
+
+<div class="catalog-page">
+    <main class="catalog-content">
+        <section class="page-header">
+            <div class="page-title-group">
+                <h1>Lab Resource Equipment Catalog</h1>
+                <p>Find, check availability, and reserve resources for your next lab session.</p>
+            </div>
+
+            <button type="button" class="btn-outline" @onclick="NavigateToMyReservations">
+                My Reservations
+            </button>
+        </section>
+
+        <section class="stats-bar">
+            <div class="stat-item">
+                <strong class="stat-value">@allResources.Count</strong>
+                <span class="stat-label">resources on campus</span>
+            </div>
+
+            <span class="vertical-divider"></span>
+
+            <div class="stat-item">
+                <span class="status-dot"></span>
+                <strong class="stat-value">@AvailableResourcesCount</strong>
+                <span class="stat-label">Available</span>
+            </div>
+
+            <div class="search-wrapper">
+                <img src="images/icon-search.svg" alt="Search" class="input-icon" />
+                <input type="text"
+                       class="search-input"
+                       placeholder="Search equipment, rooms, or resource ID"
+                       @bind="searchQuery"
+                       @bind:event="oninput"
+                       @bind:after="ResetPage" />
+            </div>
+        </section>
+
+        <CategoryFilterBar Categories="AvailableCategories"
+                           SelectedCategories="selectedCategories"
+                           OnCategoryToggled="ToggleCategory"
+                           OnClearFilters="ClearCategories" />
+
+        <section class="results-toolbar">
+            <div class="results-heading">
+                <h2>Explore resources</h2>
+                <span class="results-count">@FilteredResources.Count resources</span>
+            </div>
+
+            <div class="sort-control">
+                <label for="sort-select">Sort by:</label>
+                <select id="sort-select"
+                        class="sort-select"
+                        @bind="selectedSortOption"
+                        @bind:after="ResetPage">
+                    @foreach (var option in SortOptions)
+                    {
+                        <option value="@option">@option</option>
+                    }
+                </select>
+            </div>
+        </section>
+
+        <section class="resource-grid-section">
+            @if (isLoading)
+            {
+                <div class="state-message">Loading resources...</div>
+            }
+            else if (!string.IsNullOrWhiteSpace(errorMessage))
+            {
+                <div class="state-message error">@errorMessage</div>
+            }
+            else if (PagedResources.Count == 0)
+            {
+                <div class="state-message">No resources match your current filters.</div>
+            }
+            else
+            {
+                <div class="resource-grid">
+                    @foreach (var resource in PagedResources)
+                    {
+                        <ResourceCard Resource="resource"
+                                      Location="@ResourceDisplayHelper.GetLocation(resource, resourcesById)"
+                                      OnBookClicked="NavigateToBooking" />
+                    }
+                </div>
+            }
+        </section>
+
+        @if (!isLoading && FilteredResources.Count > 0)
+        {
+            <PaginationBar CurrentPage="currentPage"
+                           PageSize="PageSize"
+                           TotalItems="FilteredResources.Count"
+                           ItemLabel="resources"
+                           OnPageChanged="GoToPage" />
+        }
+    </main>
+</div>
+
+@code {
+    private const int PageSize = 6;
+    private static readonly string[] SortOptions = ["Name (A–Z)", "Name (Z–A)", "Availability", "Newest"];
+
+    private List<ResourcesFullDTO> allResources = [];
+    private Dictionary<int, ResourcesFullDTO> resourcesById = new();
+
+    private string searchQuery = string.Empty;
+    private HashSet<string> selectedCategories = new(StringComparer.OrdinalIgnoreCase);
+    private string selectedSortOption = SortOptions[0];
+    private int currentPage = 1;
+
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    private int AvailableResourcesCount => allResources.Count(r => r.status == Status.ACTIVE);
+
+    private List<string> AvailableCategories => allResources
+        .Select(ResourceDisplayHelper.GetCategory)
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(c => c, StringComparer.OrdinalIgnoreCase)
+        .ToList();
+
+    private List<ResourcesFullDTO> FilteredResources
+    {
+        get
+        {
+            IEnumerable<ResourcesFullDTO> query = allResources;
+
+            if (!string.IsNullOrWhiteSpace(searchQuery))
+            {
+                var term = searchQuery.Trim();
+                query = query.Where(r =>
+                    r.resource_name.Contains(term, StringComparison.OrdinalIgnoreCase)
+                    || ResourceDisplayHelper.GetCode(r).Contains(term, StringComparison.OrdinalIgnoreCase)
+                    || ResourceDisplayHelper.GetCategory(r).Contains(term, StringComparison.OrdinalIgnoreCase)
+                    || (r.equipment_model?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false)
+                    || (r.buildingId?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false)
+                    || (r.serial_number?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false));
+            }
+
+            if (selectedCategories.Count > 0)
+            {
+                query = query.Where(r => selectedCategories.Contains(ResourceDisplayHelper.GetCategory(r)));
+            }
+
+            query = selectedSortOption switch
+            {
+                "Name (Z–A)" => query.OrderByDescending(r => r.resource_name, StringComparer.OrdinalIgnoreCase),
+                "Availability" => query.OrderBy(r => r.status == Status.ACTIVE ? 0 : 1)
+                                       .ThenBy(r => r.resource_name, StringComparer.OrdinalIgnoreCase),
+                "Newest" => query.OrderByDescending(r => r.created_at),
+                _ => query.OrderBy(r => r.resource_name, StringComparer.OrdinalIgnoreCase)
+            };
+
+            return query.ToList();
+        }
+    }
+
+    private List<ResourcesFullDTO> PagedResources => FilteredResources
+        .Skip((currentPage - 1) * PageSize)
+        .Take(PageSize)
+        .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadResourcesAsync();
+    }
+
+    private async Task LoadResourcesAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            var result = await ResourceApi.GetAllResourcesAsync();
+            allResources = result.ToList();
+            resourcesById = allResources.ToDictionary(r => r.Id);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Could not load resources: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ResetPage() => currentPage = 1;
+
+    private void ToggleCategory(string category)
+    {
+        if (!selectedCategories.Add(category))
+        {
+            selectedCategories.Remove(category);
+        }
+        currentPage = 1;
+    }
+
+    private void ClearCategories()
+    {
+        selectedCategories.Clear();
+        currentPage = 1;
+    }
+
+    private void GoToPage(int page) => currentPage = page;
+
+    private void NavigateToBooking(int resourceId)
+        => NavigationManager.NavigateTo($"/catalog/{resourceId}");
+
+    private void NavigateToMyReservations()
+        => NavigationManager.NavigateTo("/my-reservations");
+}

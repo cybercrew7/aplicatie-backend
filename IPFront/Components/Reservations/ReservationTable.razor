@@ -1,0 +1,140 @@
+<div class="table-responsive">
+    <table class="reservations-table">
+        <thead>
+            <tr>
+                <th>Resource / Room Name</th>
+                <th>Category</th>
+                <th>Date &amp; Time Slot</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Reservations.Count == 0)
+            {
+                <tr>
+                    <td colspan="5" class="empty-cell">No reservations found for this filter.</td>
+                </tr>
+            }
+            else
+            {
+                @foreach (var item in Reservations)
+                {
+                    ResourcesById.TryGetValue(item.resourceId, out var resource);
+                    var resourceName = resource?.resource_name ?? $"Resource #{item.resourceId}";
+                    var location = resource is not null
+                        ? ResourceDisplayHelper.GetLocation(resource, ResourcesById)
+                        : "Campus Lab";
+                    var category = resource is not null
+                        ? ResourceDisplayHelper.GetCategory(resource)
+                        : "Resource";
+                    var canCancel = CanCancel(item);
+
+                    <tr>
+                        <td>
+                            <div class="res-name">@resourceName</div>
+                            <div class="res-location">@location</div>
+                            <div class="res-code">BK-@item.id</div>
+                        </td>
+                        <td class="res-category">@category</td>
+                        <td>
+                            <div class="res-date">@item.start_time.ToString("ddd, dd MMM yyyy")</div>
+                            <div class="res-time">@FormatTimeRange(item.start_time, item.end_time)</div>
+                        </td>
+                        <td>
+                            <StatusBadge Label="@GetStatusLabel(item.status_rezervare)"
+                                         Variant="@GetStatusVariant(item.status_rezervare)"
+                                         IconSrc="@GetStatusIcon(item.status_rezervare)" />
+                            <div class="status-sub">@GetStatusSubtitle(item)</div>
+                        </td>
+                        <td class="actions-cell">
+                            @if (canCancel)
+                            {
+                                <button type="button"
+                                        class="action-link"
+                                        disabled="@(CancelingReservationId == item.id)"
+                                        @onclick="() => OnCancelRequested.InvokeAsync(item)">
+                                    @(CancelingReservationId == item.id ? "Canceling..." : "Cancel")
+                                </button>
+                            }
+                            else
+                            {
+                                <span class="no-actions">—</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<ReservationFullDTO> Reservations { get; set; } = [];
+    [Parameter, EditorRequired] public IReadOnlyDictionary<int, ResourcesFullDTO> ResourcesById { get; set; } = new Dictionary<int, ResourcesFullDTO>();
+    [Parameter] public int? CancelingReservationId { get; set; }
+    [Parameter] public EventCallback<ReservationFullDTO> OnCancelRequested { get; set; }
+
+    private static bool CanCancel(ReservationFullDTO r)
+        => (r.status_rezervare == ReservationStatus.CONFIRMED || r.status_rezervare == ReservationStatus.PENDING)
+           && r.end_time > DateTime.Now;
+
+    private static string FormatTimeRange(DateTime start, DateTime end)
+    {
+        var duration = end - start;
+        var durationText = duration.TotalHours >= 1
+            ? $"{duration.TotalHours:0.#} {(duration.TotalHours == 1 ? "hour" : "hours")}"
+            : $"{(int)duration.TotalMinutes} min";
+        return $"{start:HH:mm}–{end:HH:mm} · {durationText}";
+    }
+
+    private static string GetStatusLabel(ReservationStatus status) => status switch
+    {
+        ReservationStatus.CONFIRMED => "Approved",
+        ReservationStatus.PENDING => "Pending",
+        ReservationStatus.CANCELED => "Canceled",
+        ReservationStatus.REJECTED => "Rejected",
+        _ => status.ToString()
+    };
+
+    private static string GetStatusVariant(ReservationStatus status) => status switch
+    {
+        ReservationStatus.CONFIRMED => "confirmed",
+        ReservationStatus.PENDING => "pending",
+        ReservationStatus.CANCELED => "canceled",
+        ReservationStatus.REJECTED => "rejected",
+        _ => "neutral"
+    };
+
+    private static string? GetStatusIcon(ReservationStatus status) => status switch
+    {
+        ReservationStatus.CONFIRMED => "images/icon-check.svg",
+        ReservationStatus.PENDING => "images/icon-clock.svg",
+        _ => null
+    };
+
+    private static string GetStatusSubtitle(ReservationFullDTO r)
+    {
+        if (r.status_rezervare == ReservationStatus.CANCELED && r.canceled_at.HasValue)
+        {
+            return $"Canceled on {r.canceled_at.Value:dd MMM}";
+        }
+
+        if (r.status_rezervare == ReservationStatus.REJECTED && !string.IsNullOrWhiteSpace(r.rejection_or_cancel_reason))
+        {
+            return r.rejection_or_cancel_reason;
+        }
+
+        if (r.start_time.Date == DateTime.Today)
+        {
+            return "Today";
+        }
+
+        if (r.reviewed_at.HasValue)
+        {
+            return $"Reviewed on {r.reviewed_at.Value:dd MMM}";
+        }
+
+        return $"Created on {r.created_at:dd MMM}";
+    }
+}
