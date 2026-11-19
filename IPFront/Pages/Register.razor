@@ -1,5 +1,387 @@
-﻿<h3>Register</h3>
+﻿@page "/register"
+@using System.ComponentModel.DataAnnotations
+@inject UserApiClient UserApi
+@inject CurrentUserService CurrentUserService
+@inject NavigationManager Navigation
+
+<PageTitle>Create account — UniLab</PageTitle>
+
+<div class="auth-page">
+    <div class="auth-card auth-card-wide">
+        <div class="auth-brand">
+            <div class="auth-logo-box">
+                <img src="images/logo-unilab.svg" alt="UniLab Logo" class="auth-logo-img" />
+            </div>
+            <div class="auth-brand-text">
+                <span class="auth-brand-name">UniLab</span>
+                <span class="auth-brand-sub">RESOURCE MANAGEMENT</span>
+            </div>
+        </div>
+
+        <div class="auth-header">
+            <h1 class="auth-title">Create your account</h1>
+            <p class="auth-subtitle">Register to reserve laboratory equipment and rooms across campus.</p>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="auth-alert auth-alert-error" role="alert">
+                @errorMessage
+            </div>
+        }
+
+        <EditForm Model="registerModel" OnValidSubmit="HandleRegisterAsync" class="auth-form">
+            <DataAnnotationsValidator />
+
+            <div class="form-row-two">
+                <div class="form-group">
+                    <label class="form-label" for="firstName">First name</label>
+                    <InputText id="firstName"
+                               class="form-input"
+                               @bind-Value="registerModel.FirstName"
+                               placeholder="Alex"
+                               disabled="@isSubmitting" />
+                    <ValidationMessage For="@(() => registerModel.FirstName)" class="field-error" />
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="lastName">Last name</label>
+                    <InputText id="lastName"
+                               class="form-input"
+                               @bind-Value="registerModel.LastName"
+                               placeholder="Morgan"
+                               disabled="@isSubmitting" />
+                    <ValidationMessage For="@(() => registerModel.LastName)" class="field-error" />
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="userName">Username</label>
+                <InputText id="userName"
+                           class="form-input"
+                           @bind-Value="registerModel.UserName"
+                           placeholder="alex.morgan"
+                           disabled="@isSubmitting" />
+                <ValidationMessage For="@(() => registerModel.UserName)" class="field-error" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="email">University email</label>
+                <InputText id="email"
+                           type="email"
+                           class="form-input"
+                           @bind-Value="registerModel.Email"
+                           placeholder="alex.morgan@university.edu"
+                           disabled="@isSubmitting" />
+                <ValidationMessage For="@(() => registerModel.Email)" class="field-error" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="phoneNumber">
+                    Phone number <span class="form-optional">(optional)</span>
+                </label>
+                <InputText id="phoneNumber"
+                           class="form-input"
+                           @bind-Value="registerModel.PhoneNumber"
+                           placeholder="+40 712 345 678"
+                           disabled="@isSubmitting" />
+                <ValidationMessage For="@(() => registerModel.PhoneNumber)" class="field-error" />
+            </div>
+
+            <div class="form-row-two">
+                <div class="form-group">
+                    <label class="form-label" for="password">Password</label>
+                    <InputText id="password"
+                               type="password"
+                               class="form-input"
+                               @bind-Value="registerModel.Password"
+                               placeholder="Min. 8 characters"
+                               disabled="@isSubmitting" />
+                    <ValidationMessage For="@(() => registerModel.Password)" class="field-error" />
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="confirmPassword">Confirm password</label>
+                    <InputText id="confirmPassword"
+                               type="password"
+                               class="form-input"
+                               @bind-Value="registerModel.ConfirmPassword"
+                               placeholder="Repeat password"
+                               disabled="@isSubmitting" />
+                    <ValidationMessage For="@(() => registerModel.ConfirmPassword)" class="field-error" />
+                </div>
+            </div>
+
+            <button type="submit" class="btn-auth-primary" disabled="@isSubmitting">
+                @(isSubmitting ? "Creating account..." : "Create account")
+            </button>
+        </EditForm>
+
+        <div class="auth-footer">
+            <span>Already have an account?</span>
+            <a href="/login" class="auth-link">Sign in</a>
+        </div>
+    </div>
+</div>
+
+<style>
+    .auth-page {
+        min-height: calc(100vh - 64px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 32px 16px;
+        background-color: #FAFAFA;
+    }
+
+    .auth-card {
+        width: 100%;
+        max-width: 520px;
+        background-color: #FFFFFF;
+        border: 1px solid #E5E7EB;
+        border-radius: 12px;
+        padding: 32px;
+        box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+    }
+
+    .auth-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 24px;
+    }
+
+    .auth-logo-box {
+        width: 32px;
+        height: 32px;
+        background-color: #111827;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .auth-logo-img {
+        width: 18px;
+        height: 18px;
+        filter: brightness(0) invert(1);
+    }
+
+    .auth-brand-text {
+        display: flex;
+        flex-direction: column;
+        line-height: 1.1;
+    }
+
+    .auth-brand-name {
+        font-size: 15px;
+        font-weight: 700;
+        color: #111827;
+    }
+
+    .auth-brand-sub {
+        font-size: 9px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        color: #6B7280;
+    }
+
+    .auth-header {
+        margin-bottom: 24px;
+    }
+
+    .auth-title {
+        font-size: 22px;
+        font-weight: 600;
+        color: #111827;
+        margin: 0 0 6px 0;
+    }
+
+    .auth-subtitle {
+        font-size: 13px;
+        color: #6B7280;
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    .auth-alert {
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 13px;
+        margin-bottom: 18px;
+    }
+
+    .auth-alert-error {
+        background-color: #FEF2F2;
+        border: 1px solid #FECACA;
+        color: #B91C1C;
+    }
+
+    .auth-form {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .form-row-two {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .form-label {
+        font-size: 13px;
+        font-weight: 500;
+        color: #374151;
+    }
+
+    .form-optional {
+        font-weight: 400;
+        color: #9CA3AF;
+    }
+
+    .form-input {
+        height: 40px;
+        padding: 0 12px;
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        font-size: 14px;
+        color: #111827;
+        background-color: #FFFFFF;
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: #111827;
+        box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.08);
+    }
+
+    .field-error {
+        font-size: 12px;
+        color: #DC2626;
+    }
+
+    .btn-auth-primary {
+        margin-top: 4px;
+        height: 42px;
+        width: 100%;
+        border: none;
+        border-radius: 8px;
+        background-color: #111827;
+        color: #FFFFFF;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+    }
+
+    .btn-auth-primary:hover:not(:disabled) {
+        background-color: #1F2937;
+    }
+
+    .btn-auth-primary:disabled {
+        opacity: 0.65;
+        cursor: not-allowed;
+    }
+
+    .auth-footer {
+        margin-top: 22px;
+        padding-top: 18px;
+        border-top: 1px solid #F3F4F6;
+        text-align: center;
+        font-size: 13px;
+        color: #6B7280;
+        display: flex;
+        justify-content: center;
+        gap: 6px;
+    }
+
+    .auth-link {
+        color: #111827;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .auth-link:hover {
+        text-decoration: underline;
+    }
+</style>
 
 @code {
+    private readonly RegisterFormModel registerModel = new();
+    private bool isSubmitting;
+    private string? errorMessage;
 
+    private async Task HandleRegisterAsync()
+    {
+        errorMessage = null;
+        isSubmitting = true;
+
+        try
+        {
+            var dto = new UserRegisterDTO(
+                registerModel.FirstName.Trim(),
+                registerModel.LastName.Trim(),
+                registerModel.Email.Trim(),
+                registerModel.UserName.Trim(),
+                string.IsNullOrWhiteSpace(registerModel.PhoneNumber) ? null : registerModel.PhoneNumber.Trim(),
+                registerModel.Password
+            );
+
+            var createdUser = await UserApi.createUserAsync(dto);
+
+            await CurrentUserService.SetCurrentUserAsync(createdUser.Id);
+            Navigation.NavigateTo("/catalog");
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Could not create account. This email or username may already be registered.";
+        }
+        catch (Exception)
+        {
+            errorMessage = "Could not create account. Please check your details and try again.";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private sealed class RegisterFormModel
+    {
+        [Required(ErrorMessage = "First name is required.")]
+        [StringLength(50, ErrorMessage = "First name cannot exceed 50 characters.")]
+        public string FirstName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Last name is required.")]
+        [StringLength(50, ErrorMessage = "Last name cannot exceed 50 characters.")]
+        public string LastName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Username is required.")]
+        [StringLength(50, MinimumLength = 3, ErrorMessage = "Username must be between 3 and 50 characters.")]
+        [RegularExpression(@"^[A-Za-z0-9._-]+$", ErrorMessage = "Only letters, digits, '.', '_' and '-' are allowed.")]
+        public string UserName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Email is required.")]
+        [EmailAddress(ErrorMessage = "Please enter a valid email address.")]
+        [StringLength(256, ErrorMessage = "Email cannot exceed 256 characters.")]
+        public string Email { get; set; } = string.Empty;
+
+        [Phone(ErrorMessage = "Please enter a valid phone number.")]
+        [StringLength(13, ErrorMessage = "Phone number cannot exceed 13 characters.")]
+        public string? PhoneNumber { get; set; }
+
+        [Required(ErrorMessage = "Password is required.")]
+        [StringLength(100, MinimumLength = 8, ErrorMessage = "Password must be at least 8 characters.")]
+        public string Password { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Please confirm your password.")]
+        [Compare(nameof(Password), ErrorMessage = "Passwords do not match.")]
+        public string ConfirmPassword { get; set; } = string.Empty;
+    }
 }

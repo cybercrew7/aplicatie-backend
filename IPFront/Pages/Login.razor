@@ -1,5 +1,286 @@
-﻿<h3>Login</h3>
+﻿@page "/login"
+@using System.ComponentModel.DataAnnotations
+@inject UserApiClient UserApi
+@inject CurrentUserService CurrentUserService
+@inject NavigationManager Navigation
+
+<PageTitle>Sign in — UniLab</PageTitle>
+
+<div class="auth-page">
+    <div class="auth-card">
+        <div class="auth-brand">
+            <div class="auth-logo-box">
+                <img src="images/logo-unilab.svg" alt="UniLab Logo" class="auth-logo-img" />
+            </div>
+            <div class="auth-brand-text">
+                <span class="auth-brand-name">UniLab</span>
+                <span class="auth-brand-sub">RESOURCE MANAGEMENT</span>
+            </div>
+        </div>
+
+        <div class="auth-header">
+            <h1 class="auth-title">Welcome back</h1>
+            <p class="auth-subtitle">Sign in to access lab equipment and manage your reservations.</p>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="auth-alert auth-alert-error" role="alert">
+                @errorMessage
+            </div>
+        }
+
+        <EditForm Model="loginModel" OnValidSubmit="HandleLoginAsync" class="auth-form">
+            <DataAnnotationsValidator />
+
+            <div class="form-group">
+                <label class="form-label" for="emailOrUsername">Email or username</label>
+                <InputText id="emailOrUsername"
+                           class="form-input"
+                           @bind-Value="loginModel.EmailOrUsername"
+                           placeholder="e.g. alex.morgan@university.edu"
+                           disabled="@isSubmitting" />
+                <ValidationMessage For="@(() => loginModel.EmailOrUsername)" class="field-error" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="password">Password</label>
+                <InputText id="password"
+                           type="password"
+                           class="form-input"
+                           @bind-Value="loginModel.Password"
+                           placeholder="Enter your password"
+                           disabled="@isSubmitting" />
+                <ValidationMessage For="@(() => loginModel.Password)" class="field-error" />
+            </div>
+
+            <button type="submit" class="btn-auth-primary" disabled="@isSubmitting">
+                @(isSubmitting ? "Signing in..." : "Sign in")
+            </button>
+        </EditForm>
+
+        <div class="auth-footer">
+            <span>Don't have an account?</span>
+            <a href="/register" class="auth-link">Create an account</a>
+        </div>
+    </div>
+</div>
+
+<style>
+    .auth-page {
+        min-height: calc(100vh - 64px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 32px 16px;
+        background-color: #FAFAFA;
+    }
+
+    .auth-card {
+        width: 100%;
+        max-width: 440px;
+        background-color: #FFFFFF;
+        border: 1px solid #E5E7EB;
+        border-radius: 12px;
+        padding: 32px;
+        box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+    }
+
+    .auth-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 24px;
+    }
+
+    .auth-logo-box {
+        width: 32px;
+        height: 32px;
+        background-color: #111827;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .auth-logo-img {
+        width: 18px;
+        height: 18px;
+        filter: brightness(0) invert(1);
+    }
+
+    .auth-brand-text {
+        display: flex;
+        flex-direction: column;
+        line-height: 1.1;
+    }
+
+    .auth-brand-name {
+        font-size: 15px;
+        font-weight: 700;
+        color: #111827;
+    }
+
+    .auth-brand-sub {
+        font-size: 9px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        color: #6B7280;
+    }
+
+    .auth-header {
+        margin-bottom: 24px;
+    }
+
+    .auth-title {
+        font-size: 22px;
+        font-weight: 600;
+        color: #111827;
+        margin: 0 0 6px 0;
+    }
+
+    .auth-subtitle {
+        font-size: 13px;
+        color: #6B7280;
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    .auth-alert {
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 13px;
+        margin-bottom: 18px;
+    }
+
+    .auth-alert-error {
+        background-color: #FEF2F2;
+        border: 1px solid #FECACA;
+        color: #B91C1C;
+    }
+
+    .auth-form {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .form-label {
+        font-size: 13px;
+        font-weight: 500;
+        color: #374151;
+    }
+
+    .form-input {
+        height: 40px;
+        padding: 0 12px;
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        font-size: 14px;
+        color: #111827;
+        background-color: #FFFFFF;
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: #111827;
+        box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.08);
+    }
+
+    .field-error {
+        font-size: 12px;
+        color: #DC2626;
+    }
+
+    .btn-auth-primary {
+        margin-top: 4px;
+        height: 42px;
+        width: 100%;
+        border: none;
+        border-radius: 8px;
+        background-color: #111827;
+        color: #FFFFFF;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+    }
+
+    .btn-auth-primary:hover:not(:disabled) {
+        background-color: #1F2937;
+    }
+
+    .btn-auth-primary:disabled {
+        opacity: 0.65;
+        cursor: not-allowed;
+    }
+
+    .auth-footer {
+        margin-top: 22px;
+        padding-top: 18px;
+        border-top: 1px solid #F3F4F6;
+        text-align: center;
+        font-size: 13px;
+        color: #6B7280;
+        display: flex;
+        justify-content: center;
+        gap: 6px;
+    }
+
+    .auth-link {
+        color: #111827;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .auth-link:hover {
+        text-decoration: underline;
+    }
+</style>
 
 @code {
+    private readonly LoginFormModel loginModel = new();
+    private bool isSubmitting;
+    private string? errorMessage;
 
+    private async Task HandleLoginAsync()
+    {
+        errorMessage = null;
+        isSubmitting = true;
+
+        try
+        {
+            var dto = new UserLoginDTO(loginModel.EmailOrUsername.Trim(), loginModel.Password);
+            var authResponse = await UserApi.loginUserAsync(dto);
+
+            await CurrentUserService.SetCurrentUserAsync(authResponse.id);
+            Navigation.NavigateTo("/catalog");
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Could not reach the server. Check that the backend API is running.";
+        }
+        catch (Exception)
+        {
+            errorMessage = "Invalid email/username or password.";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private sealed class LoginFormModel
+    {
+        [Required(ErrorMessage = "Please enter your email or username.")]
+        public string EmailOrUsername { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Please enter your password.")]
+        public string Password { get; set; } = string.Empty;
+    }
 }

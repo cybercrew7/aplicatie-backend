@@ -1,58 +1,105 @@
+using Microsoft.JSInterop;
 using Shared.DTO;
 
 namespace IPFront.Service
 {
-    /// <summary>
-    /// Holds the identity of the user currently using the app and keeps it in sync
-    /// across components. Components that display user data subscribe to
-    /// <see cref="OnChange"/> to re-render when the profile is updated.
-    /// There is no login yet, so a development user id is used.
-    /// TODO: set UserId from the login response once authentication is implemented.
-    /// </summary>
     public class CurrentUserService
     {
+        private const string StorageKey = "unilab_current_user_id";
+
         private readonly UserApiClient userApi;
+        private readonly IJSRuntime jsRuntime;
         private UserMinDTO? currentUser;
         private Task<UserMinDTO?>? loadTask;
+        private bool storageChecked;
 
-        /// <summary>Creates the service.</summary>
-        public CurrentUserService(UserApiClient _userApi)
+        public CurrentUserService(UserApiClient _userApi, IJSRuntime _jsRuntime)
         {
             userApi = _userApi;
+            jsRuntime = _jsRuntime;
         }
 
-        /// <summary>
-        /// Raised after the cached user changes (e.g. after a successful profile update).
-        /// Handlers may run outside the renderer's sync context, so components should
-        /// call <c>InvokeAsync(StateHasChanged)</c>.
-        /// </summary>
         public event Action? OnChange;
 
-        /// <summary>Id of the current user.</summary>
-        public int UserId { get; private set; } = 1;
+        public int UserId { get; private set; } = 0;
 
-        /// <summary>The cached user, or null if not loaded yet or the load failed.</summary>
         public UserMinDTO? CurrentUser => currentUser;
 
-        /// <summary>
-        /// Returns the cached user, loading it on first use. Concurrent callers share
-        /// one request; a failed load is retried on the next call.
-        /// </summary>
-        public Task<UserMinDTO?> GetCurrentUserAsync()
+        public async Task<UserMinDTO?> GetCurrentUserAsync()
         {
-            if (currentUser is not null)
+            if (!storageChecked)
             {
-                return Task.FromResult<UserMinDTO?>(currentUser);
+                storageChecked = true;
+                try
+                {
+                    var stored = await jsRuntime.InvokeAsync<string?>("localStorage.getItem", StorageKey);
+                    if (int.TryParse(stored, out var parsedId) && parsedId > 0)
+                    {
+                        UserId = parsedId;
+                    }
+                }
+                catch
+                {
+                    // Ignore JS interop errors during init
+                }
+            }
+
+            if (UserId <= 0)
+            {
+                return null;
+            }
+
+            if (currentUser is not null && currentUser.Id == UserId)
+            {
+                return currentUser;
             }
 
             if (loadTask is null || loadTask.IsCompleted)
             {
                 loadTask = LoadCurrentUserAsync();
             }
-            return loadTask;
+            return await loadTask;
         }
 
-        /// <summary>Fetches the current user's full profile; on success also refreshes the cached user.</summary>
+        public async Task<UserMinDTO?> SetCurrentUserAsync(int userId)
+        {
+            UserId = userId;
+            currentUser = null;
+            loadTask = null;
+            storageChecked = true;
+
+            try
+            {
+                await jsRuntime.InvokeVoidAsync("localStorage.setItem", StorageKey, userId.ToString());
+            }
+            catch
+            {
+                // Ignore storage errors
+            }
+
+            var loaded = await GetCurrentUserAsync();
+            OnChange?.Invoke();
+            return loaded;
+        }
+
+        public async Task LogoutAsync()
+        {
+            UserId = 0;
+            currentUser = null;
+            loadTask = null;
+
+            try
+            {
+                await jsRuntime.InvokeVoidAsync("localStorage.removeItem", StorageKey);
+            }
+            catch
+            {
+                // Ignore storage errors
+            }
+
+            OnChange?.Invoke();
+        }
+
         public async Task<ApiResult<UserProfileDTO>> GetProfileAsync()
         {
             var result = await userApi.GetUserProfileAsync(UserId);
@@ -63,11 +110,6 @@ namespace IPFront.Service
             return result;
         }
 
-        /// <summary>
-        /// Updates the current user's profile. On success the cached user is replaced and
-        /// <see cref="OnChange"/> fires, so the layout shows the new name immediately.
-        /// On 409 the result carries the conflicting fields (<c>user_name</c> / <c>email</c>).
-        /// </summary>
         public async Task<ApiResult<UserProfileDTO>> UpdateProfileAsync(UpdateUserProfileDTO profile)
         {
             var result = await userApi.UpdateUserProfileAsync(UserId, profile);
@@ -78,7 +120,6 @@ namespace IPFront.Service
             return result;
         }
 
-        /// <summary>Updates the current user's notification and appearance settings.</summary>
         public async Task<ApiResult<UserProfileDTO>> UpdateSettingsAsync(UpdateUserSettingsDTO settings)
         {
             var result = await userApi.UpdateUserSettingsAsync(UserId, settings);
@@ -89,15 +130,9 @@ namespace IPFront.Service
             return result;
         }
 
-        /// <summary>Changes the current user's password.</summary>
         public Task<ApiResult> ChangePasswordAsync(ChangePasswordDTO password)
             => userApi.ChangePasswordAsync(UserId, password);
 
-        /// <summary>
-        /// Replaces the cached user with data from <paramref name="profile"/> and raises
-        /// <see cref="OnChange"/> if anything shown in the layout actually changed.
-        /// Profiles of other users are ignored.
-        /// </summary>
         public void ApplyProfile(UserProfileDTO profile)
         {
             if (profile.Id != UserId)
@@ -113,7 +148,6 @@ namespace IPFront.Service
                 profile.role,
                 profile.profile_image_url);
 
-            // Records compare by value, so this skips no-op notifications.
             if (updated == currentUser)
             {
                 return;
@@ -135,8 +169,8 @@ namespace IPFront.Service
                 loaded = null;
             }
 
-            // A profile update may have landed while this request was in flight; keep the newer data.
             currentUser ??= loaded;
+            OnChange?.Invoke();
             return currentUser;
         }
     }
