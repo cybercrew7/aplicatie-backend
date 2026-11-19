@@ -1,6 +1,348 @@
 ﻿@page "/profile"
-<h3>Profile</h3>
+@implements IDisposable
+@inject CurrentUserService CurrentUserService
+
+<PageTitle>Profile - UniLab</PageTitle>
+
+<FeedbackToast Toast="toast" OnDismiss="() => toast = null" />
+
+<div class="content-area">
+    <div class="breadcrumbs">Account &nbsp;/&nbsp; Profile</div>
+
+    <div class="page-header-row">
+        <div>
+            <h1 class="page-title">Profile</h1>
+            <p class="page-subtitle">Manage your personal information and how you appear to others.</p>
+        </div>
+        <a href="/settings" class="btn-outline">
+            <img src="images/icon-settings.svg" alt="" class="btn-icon" />
+            <span>Account settings</span>
+        </a>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="profile-grid" aria-busy="true" aria-label="Loading profile">
+            <div class="panel overview-card">
+                <div class="skeleton skeleton-avatar"></div>
+                <div class="skeleton skeleton-line w-60"></div>
+                <div class="skeleton skeleton-line w-40"></div>
+                <div class="skeleton-divider"></div>
+                <div class="skeleton skeleton-line w-80"></div>
+                <div class="skeleton skeleton-line w-70"></div>
+                <div class="skeleton skeleton-line w-50"></div>
+            </div>
+            <div class="panel form-card">
+                <div class="panel-header">
+                    <div class="skeleton skeleton-line w-40"></div>
+                    <div class="skeleton skeleton-line w-60"></div>
+                </div>
+                <div class="form-body">
+                    @for (var i = 0; i < 4; i++)
+                    {
+                        <div class="skeleton skeleton-field"></div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+    else if (loadError is not null)
+    {
+        <div class="panel state-card" role="alert">
+            <img src="images/icon-exclamation.svg" alt="" class="state-icon" />
+            <h2 class="state-title">We couldn't load your profile</h2>
+            <p class="state-desc">@loadError</p>
+            <button type="button" class="btn-primary-dark" @onclick="LoadProfileAsync">Try again</button>
+        </div>
+    }
+    else if (profile is not null && editContext is not null)
+    {
+        <div class="profile-grid">
+            @* ---------- Overview ---------- *@
+            <aside class="panel overview-card" aria-label="Profile overview">
+                <div class="avatar-xl">
+                    @if (!string.IsNullOrWhiteSpace(profile.profile_image_url))
+                    {
+                        <img src="@profile.profile_image_url" alt="" class="avatar-photo" />
+                    }
+                    else
+                    {
+                        <span class="avatar-initials">@Initials</span>
+                    }
+                </div>
+
+                <h2 class="overview-name">@profile.first_name @profile.last_name</h2>
+                <div class="overview-username">@@@profile.user_name</div>
+                <span class="role-badge @(profile.role == Role.ADMIN ? "role-admin" : "role-user")">@RoleLabel</span>
+
+                <dl class="detail-list">
+                    <div class="detail-row">
+                        <dt>Email</dt>
+                        <dd title="@profile.email">@profile.email</dd>
+                    </div>
+                    <div class="detail-row">
+                        <dt>Phone</dt>
+                        <dd class="@(string.IsNullOrWhiteSpace(profile.phone_number) ? "muted" : "")">
+                            @(string.IsNullOrWhiteSpace(profile.phone_number) ? "Not provided" : profile.phone_number)
+                        </dd>
+                    </div>
+                    <div class="detail-row">
+                        <dt>Member since</dt>
+                        <dd>@FormatDate(profile.created_at)</dd>
+                    </div>
+                    <div class="detail-row">
+                        <dt>Last active</dt>
+                        <dd>@FormatRelative(profile.last_time_active_at)</dd>
+                    </div>
+                </dl>
+
+                <a href="/settings" class="overview-link">
+                    <span>Password &amp; preferences</span>
+                    <span aria-hidden="true">&rarr;</span>
+                </a>
+            </aside>
+
+            @* ---------- Edit form ---------- *@
+            <section class="panel form-card" aria-labelledby="personal-info-title">
+                <div class="panel-header">
+                    <h2 id="personal-info-title" class="panel-title">Personal information</h2>
+                    <p class="panel-subtitle">Your name, username and contact details. Username and email must be unique.</p>
+                </div>
+
+                <EditForm EditContext="editContext" OnValidSubmit="SaveAsync">
+                    <DataAnnotationsValidator />
+
+                    <fieldset class="form-body" disabled="@isSaving">
+                        <div class="field-row">
+                            <div class="field">
+                                <label for="first-name">First name</label>
+                                <InputText id="first-name" class="input" @bind-Value="form.first_name" autocomplete="given-name" maxlength="50" />
+                                <ValidationMessage For="() => form.first_name" />
+                            </div>
+                            <div class="field">
+                                <label for="last-name">Last name</label>
+                                <InputText id="last-name" class="input" @bind-Value="form.last_name" autocomplete="family-name" maxlength="50" />
+                                <ValidationMessage For="() => form.last_name" />
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <label for="user-name">Username</label>
+                            <div class="input-affix">
+                                <span class="affix" aria-hidden="true">@@</span>
+                                <InputText id="user-name" class="input" @bind-Value="form.user_name" autocomplete="username" maxlength="50" spellcheck="false" />
+                            </div>
+                            <span class="field-hint">Letters, digits, '.', '_' and '-' only.</span>
+                            <ValidationMessage For="() => form.user_name" />
+                        </div>
+
+                        <div class="field">
+                            <label for="email">Email address</label>
+                            <InputText id="email" type="email" class="input" @bind-Value="form.email" autocomplete="email" maxlength="256" spellcheck="false" />
+                            <ValidationMessage For="() => form.email" />
+                        </div>
+
+                        <div class="field">
+                            <label for="phone">Phone number <span class="optional">Optional</span></label>
+                            <InputText id="phone" type="tel" class="input" @bind-Value="form.phone_number" autocomplete="tel" maxlength="13" placeholder="+40 7xx xxx xxx" />
+                            <ValidationMessage For="() => form.phone_number" />
+                        </div>
+                    </fieldset>
+
+                    <div class="form-footer">
+                        <span class="footer-hint">
+                            @if (IsDirty)
+                            {
+                                <span class="dirty-dot" aria-hidden="true"></span>
+                                <span>You have unsaved changes</span>
+                            }
+                            else
+                            {
+                                <span>Last updated @FormatRelative(profile.updated_at)</span>
+                            }
+                        </span>
+                        <div class="footer-actions">
+                            <button type="button" class="btn-ghost" @onclick="DiscardChanges" disabled="@(!IsDirty || isSaving)">
+                                Discard
+                            </button>
+                            <button type="submit" class="btn-primary-dark" disabled="@(!IsDirty || isSaving)" aria-busy="@isSaving">
+                                @if (isSaving)
+                                {
+                                    <span class="spinner" aria-hidden="true"></span>
+                                    <span>Saving…</span>
+                                }
+                                else
+                                {
+                                    <span>Save changes</span>
+                                }
+                            </button>
+                        </div>
+                    </div>
+                </EditForm>
+            </section>
+        </div>
+    }
+</div>
 
 @code {
+    private UserProfileDTO? profile;
+    private UpdateUserProfileDTO form = new();
+    private EditContext? editContext;
+    private ValidationMessageStore? serverErrors;
 
+    private bool isLoading = true;
+    private bool isSaving;
+    private string? loadError;
+    private ToastMessage? toast;
+
+    private bool IsDirty => profile is not null && (
+        !string.Equals(form.first_name, profile.first_name, StringComparison.Ordinal) ||
+        !string.Equals(form.last_name, profile.last_name, StringComparison.Ordinal) ||
+        !string.Equals(form.user_name, profile.user_name, StringComparison.Ordinal) ||
+        !string.Equals(form.email, profile.email, StringComparison.Ordinal) ||
+        !string.Equals(NullIfBlank(form.phone_number), NullIfBlank(profile.phone_number), StringComparison.Ordinal));
+
+    private string Initials
+    {
+        get
+        {
+            var first = profile?.first_name?.Trim();
+            var last = profile?.last_name?.Trim();
+            var initials = $"{(string.IsNullOrEmpty(first) ? "" : first[..1])}{(string.IsNullOrEmpty(last) ? "" : last[..1])}";
+            return initials.Length > 0 ? initials.ToUpperInvariant() : "?";
+        }
+    }
+
+    private string RoleLabel => profile?.role == Role.ADMIN ? "Administrator" : "Member";
+
+    protected override Task OnInitializedAsync() => LoadProfileAsync();
+
+    private async Task LoadProfileAsync()
+    {
+        isLoading = true;
+        loadError = null;
+
+        var result = await CurrentUserService.GetProfileAsync();
+        if (result.IsSuccess)
+        {
+            profile = result.Value;
+            InitializeForm(result.Value);
+        }
+        else
+        {
+            loadError = result.ErrorMessage;
+        }
+
+        isLoading = false;
+    }
+
+    private void InitializeForm(UserProfileDTO source)
+    {
+        DetachEditContext();
+
+        form = new UpdateUserProfileDTO();
+        CopyToForm(source);
+
+        editContext = new EditContext(form);
+        serverErrors = new ValidationMessageStore(editContext);
+        // A server error (e.g. "username already taken") is cleared as soon as the user edits that field.
+        editContext.OnFieldChanged += HandleFieldChanged;
+    }
+
+    private void CopyToForm(UserProfileDTO source)
+    {
+        form.first_name = source.first_name;
+        form.last_name = source.last_name;
+        form.user_name = source.user_name;
+        form.email = source.email;
+        form.phone_number = source.phone_number;
+    }
+
+    private void HandleFieldChanged(object? sender, FieldChangedEventArgs e)
+    {
+        serverErrors?.Clear(e.FieldIdentifier);
+    }
+
+    private async Task SaveAsync()
+    {
+        if (isSaving || editContext is null || serverErrors is null)
+        {
+            return;
+        }
+
+        isSaving = true;
+        toast = null;
+        serverErrors.Clear();
+        editContext.NotifyValidationStateChanged();
+
+        try
+        {
+            var request = new UpdateUserProfileDTO
+            {
+                first_name = form.first_name.Trim(),
+                last_name = form.last_name.Trim(),
+                user_name = form.user_name.Trim(),
+                email = form.email.Trim(),
+                phone_number = NullIfBlank(form.phone_number)
+            };
+
+            var result = await CurrentUserService.UpdateProfileAsync(request);
+
+            if (result.IsSuccess)
+            {
+                profile = result.Value;
+                CopyToForm(result.Value);
+                editContext.MarkAsUnmodified();
+                toast = ToastMessage.Success("Profile updated", "Your changes have been saved.");
+            }
+            else
+            {
+                result.ApplyTo(editContext, serverErrors);
+                toast = result.IsConflict
+                    ? ToastMessage.Error("Username or email already in use", result.ErrorMessage)
+                    : ToastMessage.Error("Couldn't save your profile", result.ErrorMessage);
+            }
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void DiscardChanges()
+    {
+        if (profile is null)
+        {
+            return;
+        }
+
+        // A fresh EditContext drops both client-side and server validation messages.
+        InitializeForm(profile);
+    }
+
+    private void DetachEditContext()
+    {
+        if (editContext is not null)
+        {
+            editContext.OnFieldChanged -= HandleFieldChanged;
+        }
+    }
+
+    private static string? NullIfBlank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static string FormatDate(DateTime value) => value.ToString("dd MMM yyyy");
+
+    private static string FormatRelative(DateTime value)
+    {
+        var utc = value.Kind == DateTimeKind.Local ? value.ToUniversalTime() : value;
+        var elapsed = DateTime.UtcNow - utc;
+
+        if (elapsed < TimeSpan.Zero || elapsed.TotalMinutes < 1) return "just now";
+        if (elapsed.TotalHours < 1) return $"{(int)elapsed.TotalMinutes} min ago";
+        if (elapsed.TotalDays < 1) return $"{(int)elapsed.TotalHours} h ago";
+        if (elapsed.TotalDays < 7) return $"{(int)elapsed.TotalDays} d ago";
+        return FormatDate(value);
+    }
+
+    public void Dispose() => DetachEditContext();
 }
