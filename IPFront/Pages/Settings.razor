@@ -1,6 +1,499 @@
 ﻿@page "/settings"
-<h3>Settings</h3>
+@implements IDisposable
+@inject CurrentUserService CurrentUserService
+
+<PageTitle>Settings - UniLab</PageTitle>
+
+<FeedbackToast Toast="toast" OnDismiss="() => toast = null" />
+
+<div class="content-area">
+    <div class="breadcrumbs">Account &nbsp;/&nbsp; Settings</div>
+
+    <div class="page-header-row">
+        <div>
+            <h1 class="page-title">Settings</h1>
+            <p class="page-subtitle">Manage your password, notifications and appearance preferences.</p>
+        </div>
+        <a href="/profile" class="btn-outline">
+            <img src="images/icon-profile.svg" alt="" class="btn-icon" />
+            <span>View profile</span>
+        </a>
+    </div>
+
+    @* ================= Account ================= *@
+    <section class="settings-section" aria-labelledby="account-title">
+        <div class="section-intro">
+            <h2 id="account-title" class="section-title">Account</h2>
+            <p class="section-desc">The identity you use to sign in. Edit these details on your profile.</p>
+        </div>
+
+        <div class="panel">
+            @if (isLoading)
+            {
+                <div class="panel-body" aria-busy="true">
+                    <div class="skeleton skeleton-line w-50"></div>
+                    <div class="skeleton skeleton-line w-70"></div>
+                </div>
+            }
+            else if (loadError is not null)
+            {
+                <div class="panel-body inline-error" role="alert">
+                    <img src="images/icon-exclamation.svg" alt="" class="inline-error-icon" />
+                    <div class="inline-error-text">
+                        <div class="inline-error-title">Couldn't load your account details</div>
+                        <div class="inline-error-desc">@loadError</div>
+                    </div>
+                    <button type="button" class="btn-outline btn-sm" @onclick="LoadProfileAsync">Retry</button>
+                </div>
+            }
+            else if (profile is not null)
+            {
+                <dl class="account-list">
+                    <div class="account-row">
+                        <dt>Username</dt>
+                        <dd>@@@profile.user_name</dd>
+                    </div>
+                    <div class="account-row">
+                        <dt>Email</dt>
+                        <dd>@profile.email</dd>
+                    </div>
+                    <div class="account-row">
+                        <dt>Role</dt>
+                        <dd>@(profile.role == Role.ADMIN ? "Administrator" : "Member")</dd>
+                    </div>
+                </dl>
+                <div class="panel-footer">
+                    <span class="footer-hint">Member since @profile.created_at.ToString("dd MMM yyyy")</span>
+                    <a href="/profile" class="btn-ghost">Edit profile</a>
+                </div>
+            }
+        </div>
+    </section>
+
+    @* ================= Password ================= *@
+    <section class="settings-section" aria-labelledby="password-title">
+        <div class="section-intro">
+            <h2 id="password-title" class="section-title">Password</h2>
+            <p class="section-desc">Use at least 8 characters. A longer password that mixes letters, numbers and symbols is stronger.</p>
+        </div>
+
+        <div class="panel">
+            <EditForm EditContext="passwordContext" OnValidSubmit="ChangePasswordAsync">
+                <DataAnnotationsValidator />
+
+                <fieldset class="panel-body form-body" disabled="@isChangingPassword">
+                    <div class="field">
+                        <label for="current-password">Current password</label>
+                        <InputText id="current-password" type="@PasswordInputType" class="input"
+                                   @bind-Value="passwordForm.current_password" autocomplete="current-password" />
+                        <ValidationMessage For="() => passwordForm.current_password" />
+                    </div>
+
+                    <div class="field-row">
+                        <div class="field">
+                            <label for="new-password">New password</label>
+                            <InputText id="new-password" type="@PasswordInputType" class="input"
+                                       @bind-Value="passwordForm.new_password"
+                                       @oninput="e => newPasswordDraft = e.Value?.ToString()"
+                                       autocomplete="new-password" maxlength="100" />
+                            @if (!string.IsNullOrEmpty(NewPasswordValue))
+                            {
+                                <div class="strength" aria-live="polite">
+                                    <div class="strength-bar">
+                                        @for (var i = 1; i <= 4; i++)
+                                        {
+                                            <span class="strength-seg @(i <= Strength.Score ? Strength.CssClass : "")"></span>
+                                        }
+                                    </div>
+                                    <span class="strength-label">@Strength.Label</span>
+                                </div>
+                            }
+                            <ValidationMessage For="() => passwordForm.new_password" />
+                        </div>
+
+                        <div class="field">
+                            <label for="confirm-password">Confirm new password</label>
+                            <InputText id="confirm-password" type="@PasswordInputType" class="input"
+                                       @bind-Value="passwordForm.confirm_new_password" autocomplete="new-password" maxlength="100" />
+                            <ValidationMessage For="() => passwordForm.confirm_new_password" />
+                        </div>
+                    </div>
+
+                    <label class="checkbox-inline">
+                        <input type="checkbox" @bind="showPasswords" />
+                        <span>Show passwords</span>
+                    </label>
+                </fieldset>
+
+                <div class="panel-footer">
+                    <span class="footer-hint">You'll keep your current session after changing it.</span>
+                    <button type="submit" class="btn-primary-dark" disabled="@isChangingPassword" aria-busy="@isChangingPassword">
+                        @if (isChangingPassword)
+                        {
+                            <span class="spinner" aria-hidden="true"></span>
+                            <span>Updating…</span>
+                        }
+                        else
+                        {
+                            <span>Update password</span>
+                        }
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </section>
+
+    @* ================= Preferences (notifications + appearance) ================= *@
+    <section class="settings-section" aria-labelledby="preferences-title">
+        <div class="section-intro">
+            <h2 id="preferences-title" class="section-title">Preferences</h2>
+            <p class="section-desc">Choose which emails you receive and how UniLab looks for you.</p>
+        </div>
+
+        <div class="panel">
+            @if (isLoading)
+            {
+                <div class="panel-body" aria-busy="true">
+                    <div class="skeleton skeleton-row"></div>
+                    <div class="skeleton skeleton-row"></div>
+                    <div class="skeleton skeleton-row tall"></div>
+                </div>
+            }
+            else if (loadError is not null)
+            {
+                <div class="panel-body muted-state">Preferences are unavailable until your account details load.</div>
+            }
+            else if (settingsContext is not null)
+            {
+                <EditForm EditContext="settingsContext" OnValidSubmit="SaveSettingsAsync">
+                    <DataAnnotationsValidator />
+
+                    <fieldset class="panel-body prefs-body" disabled="@isSavingSettings">
+                        <div class="group-title">Notifications</div>
+
+                        <label class="toggle-row" for="email-notifications">
+                            <span class="toggle-text">
+                                <span class="toggle-title">Email notifications</span>
+                                <span class="toggle-desc">Updates when a reservation is approved, rejected or canceled.</span>
+                            </span>
+                            <InputCheckbox id="email-notifications" class="switch" role="switch"
+                                           @bind-Value="settingsForm.email_notifications_enabled" />
+                        </label>
+
+                        <label class="toggle-row" for="reservation-reminders">
+                            <span class="toggle-text">
+                                <span class="toggle-title">Reservation reminders</span>
+                                <span class="toggle-desc">A reminder before each upcoming lab session.</span>
+                            </span>
+                            <InputCheckbox id="reservation-reminders" class="switch" role="switch"
+                                           @bind-Value="settingsForm.reservation_reminders_enabled" />
+                        </label>
+
+                        <div class="group-title spaced" id="theme-label">Appearance</div>
+
+                        <InputRadioGroup @bind-Value="settingsForm.theme" Name="theme">
+                            <div class="theme-grid" role="radiogroup" aria-labelledby="theme-label">
+                                @foreach (var option in ThemeOptions)
+                                {
+                                    <label class="theme-option @(settingsForm.theme == option.Value ? "selected" : "")">
+                                        <InputRadio Value="option.Value" class="theme-radio" />
+                                        <span class="theme-preview @option.PreviewClass" aria-hidden="true">
+                                            <span class="tp-bar"></span>
+                                            <span class="tp-line"></span>
+                                            <span class="tp-line short"></span>
+                                        </span>
+                                        <span class="theme-name">@option.Label</span>
+                                        <span class="theme-desc">@option.Description</span>
+                                    </label>
+                                }
+                            </div>
+                        </InputRadioGroup>
+                        <ValidationMessage For="() => settingsForm.theme" />
+                    </fieldset>
+
+                    <div class="panel-footer">
+                        <span class="footer-hint">
+                            @if (IsSettingsDirty)
+                            {
+                                <span class="dirty-dot" aria-hidden="true"></span>
+                                <span>You have unsaved changes</span>
+                            }
+                            else
+                            {
+                                <span>All changes saved</span>
+                            }
+                        </span>
+                        <div class="footer-actions">
+                            <button type="button" class="btn-ghost" @onclick="DiscardSettings" disabled="@(!IsSettingsDirty || isSavingSettings)">
+                                Discard
+                            </button>
+                            <button type="submit" class="btn-primary-dark" disabled="@(!IsSettingsDirty || isSavingSettings)" aria-busy="@isSavingSettings">
+                                @if (isSavingSettings)
+                                {
+                                    <span class="spinner" aria-hidden="true"></span>
+                                    <span>Saving…</span>
+                                }
+                                else
+                                {
+                                    <span>Save preferences</span>
+                                }
+                            </button>
+                        </div>
+                    </div>
+                </EditForm>
+            }
+        </div>
+    </section>
+</div>
 
 @code {
+    private sealed record ThemeOption(Theme Value, string Label, string Description, string PreviewClass);
 
+    private sealed record PasswordStrength(int Score, string Label, string CssClass);
+
+    private static readonly ThemeOption[] ThemeOptions =
+    [
+        new(Theme.SYSTEM, "System", "Match your device", "tp-system"),
+        new(Theme.LIGHT, "Light", "Always light", "tp-light"),
+        new(Theme.DARK, "Dark", "Always dark", "tp-dark")
+    ];
+
+    private UserProfileDTO? profile;
+    private bool isLoading = true;
+    private string? loadError;
+    private ToastMessage? toast;
+
+    // Password form
+    private ChangePasswordDTO passwordForm = new();
+    private EditContext passwordContext = default!;
+    private ValidationMessageStore passwordServerErrors = default!;
+    private bool isChangingPassword;
+    private bool showPasswords;
+    private string? newPasswordDraft;
+
+    // Preferences form
+    private UpdateUserSettingsDTO settingsForm = new();
+    private EditContext? settingsContext;
+    private ValidationMessageStore? settingsServerErrors;
+    private bool isSavingSettings;
+
+    private string PasswordInputType => showPasswords ? "text" : "password";
+
+    private string NewPasswordValue => newPasswordDraft ?? passwordForm.new_password;
+
+    private PasswordStrength Strength => EvaluateStrength(NewPasswordValue);
+
+    private bool IsSettingsDirty => profile is not null && (
+        settingsForm.email_notifications_enabled != profile.email_notifications_enabled ||
+        settingsForm.reservation_reminders_enabled != profile.reservation_reminders_enabled ||
+        settingsForm.theme != profile.theme);
+
+    protected override async Task OnInitializedAsync()
+    {
+        ResetPasswordForm();
+        await LoadProfileAsync();
+    }
+
+    private async Task LoadProfileAsync()
+    {
+        isLoading = true;
+        loadError = null;
+
+        var result = await CurrentUserService.GetProfileAsync();
+        if (result.IsSuccess)
+        {
+            profile = result.Value;
+            InitializeSettingsForm(result.Value);
+        }
+        else
+        {
+            loadError = result.ErrorMessage;
+        }
+
+        isLoading = false;
+    }
+
+    // ---------------- Password ----------------
+
+    private void ResetPasswordForm()
+    {
+        if (passwordContext is not null)
+        {
+            passwordContext.OnFieldChanged -= HandlePasswordFieldChanged;
+        }
+
+        passwordForm = new ChangePasswordDTO();
+        passwordContext = new EditContext(passwordForm);
+        passwordServerErrors = new ValidationMessageStore(passwordContext);
+        passwordContext.OnFieldChanged += HandlePasswordFieldChanged;
+        newPasswordDraft = null;
+    }
+
+    private void HandlePasswordFieldChanged(object? sender, FieldChangedEventArgs e)
+    {
+        passwordServerErrors.Clear(e.FieldIdentifier);
+
+        // Compare is only evaluated on the field it decorates; re-check the confirmation
+        // when the new password changes so a stale "do not match" message disappears.
+        if (e.FieldIdentifier.FieldName == nameof(ChangePasswordDTO.new_password)
+            && !string.IsNullOrEmpty(passwordForm.confirm_new_password))
+        {
+            passwordContext.NotifyFieldChanged(new FieldIdentifier(passwordForm, nameof(ChangePasswordDTO.confirm_new_password)));
+        }
+    }
+
+    private async Task ChangePasswordAsync()
+    {
+        if (isChangingPassword)
+        {
+            return;
+        }
+
+        isChangingPassword = true;
+        toast = null;
+        passwordServerErrors.Clear();
+        passwordContext.NotifyValidationStateChanged();
+
+        try
+        {
+            var result = await CurrentUserService.ChangePasswordAsync(new ChangePasswordDTO
+            {
+                current_password = passwordForm.current_password,
+                new_password = passwordForm.new_password,
+                confirm_new_password = passwordForm.confirm_new_password
+            });
+
+            if (result.IsSuccess)
+            {
+                ResetPasswordForm();
+                showPasswords = false;
+                toast = ToastMessage.Success("Password updated", "Use your new password the next time you sign in.");
+            }
+            else
+            {
+                result.ApplyTo(passwordContext, passwordServerErrors);
+                var wrongCurrent = result.GetFieldErrors(nameof(ChangePasswordDTO.current_password)).Count > 0;
+                toast = ToastMessage.Error(
+                    wrongCurrent ? "Current password is incorrect" : "Couldn't update your password",
+                    wrongCurrent ? "Check your current password and try again." : result.ErrorMessage);
+            }
+        }
+        finally
+        {
+            isChangingPassword = false;
+        }
+    }
+
+    private static PasswordStrength EvaluateStrength(string? password)
+    {
+        if (string.IsNullOrEmpty(password))
+        {
+            return new(0, string.Empty, string.Empty);
+        }
+
+        if (password.Length < 8)
+        {
+            return new(1, "Too short", "weak");
+        }
+
+        var variety = 0;
+        if (password.Any(char.IsLower)) variety++;
+        if (password.Any(char.IsUpper)) variety++;
+        if (password.Any(char.IsDigit)) variety++;
+        if (password.Any(c => !char.IsLetterOrDigit(c))) variety++;
+
+        var score = 1 + (password.Length >= 12 ? 1 : 0) + (variety >= 3 ? 1 : 0) + (variety == 4 && password.Length >= 14 ? 1 : 0);
+        return score switch
+        {
+            1 => new(1, "Weak", "weak"),
+            2 => new(2, "Fair", "fair"),
+            3 => new(3, "Good", "good"),
+            _ => new(4, "Strong", "strong")
+        };
+    }
+
+    // ---------------- Preferences ----------------
+
+    private void InitializeSettingsForm(UserProfileDTO source)
+    {
+        if (settingsContext is not null)
+        {
+            settingsContext.OnFieldChanged -= HandleSettingsFieldChanged;
+        }
+
+        settingsForm = new UpdateUserSettingsDTO
+        {
+            email_notifications_enabled = source.email_notifications_enabled,
+            reservation_reminders_enabled = source.reservation_reminders_enabled,
+            theme = source.theme
+        };
+        settingsContext = new EditContext(settingsForm);
+        settingsServerErrors = new ValidationMessageStore(settingsContext);
+        settingsContext.OnFieldChanged += HandleSettingsFieldChanged;
+    }
+
+    private void HandleSettingsFieldChanged(object? sender, FieldChangedEventArgs e)
+    {
+        settingsServerErrors?.Clear(e.FieldIdentifier);
+    }
+
+    private async Task SaveSettingsAsync()
+    {
+        if (isSavingSettings || settingsContext is null || settingsServerErrors is null)
+        {
+            return;
+        }
+
+        isSavingSettings = true;
+        toast = null;
+        settingsServerErrors.Clear();
+        settingsContext.NotifyValidationStateChanged();
+
+        try
+        {
+            var result = await CurrentUserService.UpdateSettingsAsync(new UpdateUserSettingsDTO
+            {
+                email_notifications_enabled = settingsForm.email_notifications_enabled,
+                reservation_reminders_enabled = settingsForm.reservation_reminders_enabled,
+                theme = settingsForm.theme
+            });
+
+            if (result.IsSuccess)
+            {
+                profile = result.Value;
+                InitializeSettingsForm(result.Value);
+                toast = ToastMessage.Success("Preferences saved", "Your notification and appearance settings were updated.");
+            }
+            else
+            {
+                result.ApplyTo(settingsContext, settingsServerErrors);
+                toast = ToastMessage.Error("Couldn't save your preferences", result.ErrorMessage);
+            }
+        }
+        finally
+        {
+            isSavingSettings = false;
+        }
+    }
+
+    private void DiscardSettings()
+    {
+        if (profile is not null)
+        {
+            InitializeSettingsForm(profile);
+        }
+    }
+
+    public void Dispose()
+    {
+        if (passwordContext is not null)
+        {
+            passwordContext.OnFieldChanged -= HandlePasswordFieldChanged;
+        }
+
+        if (settingsContext is not null)
+        {
+            settingsContext.OnFieldChanged -= HandleSettingsFieldChanged;
+        }
+    }
 }

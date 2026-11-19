@@ -13,6 +13,7 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<saxafon.Data.AppDbContext>(options => options.UseMySQL(connectionString));
 builder.Services.AddControllersWithViews();
 
+builder.Services.AddSingleton<Microsoft.AspNetCore.Identity.IPasswordHasher<saxafon.Models.User>, Microsoft.AspNetCore.Identity.PasswordHasher<saxafon.Models.User>>();
 builder.Services.AddScoped<saxafon.Services.IUserService, saxafon.Services.UserService>();
 builder.Services.AddScoped<saxafon.Services.IResourcesService, saxafon.Services.ResourcesService>();
 builder.Services.AddScoped<saxafon.Services.IReservationService, saxafon.Services.ReservationService>();

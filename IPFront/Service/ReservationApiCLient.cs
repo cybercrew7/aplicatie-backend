@@ -1,48 +1,56 @@
-﻿using Shared.DTO;
+using Shared.DTO;
 
 using System.Net.Http.Json;
 
 namespace IPFront.Service
 {
+    /// <summary>Typed HTTP client for the <c>api/Reservation</c> endpoints.</summary>
     public class ReservationApiClient
     {
 
 
         private readonly HttpClient _httpClient;
 
+        /// <summary>Creates the client; the base address is configured in <c>Program.cs</c>.</summary>
         public ReservationApiClient(HttpClient httpClient)
         {
             _httpClient = httpClient;
         }
 
+        /// <summary>Returns all reservations.</summary>
         public async Task<IEnumerable<ReservationFullDTO>> getAllReservationAsync()
         {
             return await _httpClient.GetFromJsonAsync<IEnumerable<ReservationFullDTO>>("api/Reservation/getAll") ?? [];
         }
 
 
+        /// <summary>Returns a reservation by id.</summary>
         public async Task<ReservationFullDTO?> getReservationByIdAsync(int id)
         {
             return await _httpClient.GetFromJsonAsync<ReservationFullDTO>($"api/Reservation/{id}");
         }
 
+        /// <summary>Returns the reservations of a resource.</summary>
         public async Task<IEnumerable<ReservationFullDTO>> getReservationByResourceIdAsync(int resourceId)
         {
             return await _httpClient.GetFromJsonAsync<IEnumerable<ReservationFullDTO>>($"api/Reservation/resource/{resourceId}") ?? [];
         }
 
+        /// <summary>Returns all reservations of a user.</summary>
         public async Task<IEnumerable<ReservationFullDTO>> getAllReservationByUserIdAsync(int userId)
         {
             return await _httpClient.GetFromJsonAsync<IEnumerable<ReservationFullDTO>>($"api/Reservation/user/{userId}") ?? [];
         }
 
         
+        /// <summary>Returns the current (not yet finished) reservations of a user.</summary>
         public async Task<IEnumerable<ReservationFullDTO>> getCurrentReservationByUserIdAsync(int userId)
         {
             return await _httpClient.GetFromJsonAsync<IEnumerable<ReservationFullDTO>>($"api/Reservation/current/{userId}") ?? [];
         }
 
 
+        /// <summary>Cancels a reservation. Throws <see cref="HttpRequestException"/> with the API message on failure.</summary>
         public async Task<ReservationCancelResponseDTO?> CancelReservationAsync(ReservationCancelDTO reservation)
         {
             var response = await _httpClient.PostAsJsonAsync($"api/Reservation/cancel", reservation);
@@ -50,6 +58,7 @@ namespace IPFront.Service
             return await response.Content.ReadFromJsonAsync<ReservationCancelResponseDTO>();
         }
 
+        /// <summary>Creates a reservation. Throws <see cref="HttpRequestException"/> with the API message on failure.</summary>
         public async Task<ReservationFullDTO?> CreateReservationAsync(ReservationCreateDTO reservation)
         {
             var response = await _httpClient.PostAsJsonAsync($"api/Reservation/create", reservation);
@@ -58,6 +67,7 @@ namespace IPFront.Service
         }
 
 
+        /// <summary>Returns this week's reservations of a resource.</summary>
         public async Task<IEnumerable<ReservationViewDTO>> ShowCurrentWeekReservationsAsync(int resourceId)
         {
             return await _httpClient.GetFromJsonAsync<IEnumerable<ReservationViewDTO>>($"api/Reservation/thisWeek?resourceId={resourceId}") ?? [];

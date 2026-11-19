@@ -138,10 +138,3 @@
     color: #9CA3AF;
     padding: 0 8px;
 }
-
-.nav-icon {
-    width: 17px;
-    height: 17px;
-    flex-shrink: 0;
-    opacity: 0.75;
-}

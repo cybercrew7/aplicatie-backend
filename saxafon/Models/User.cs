@@ -38,7 +38,11 @@ namespace saxafon.Models
         public DateTime last_time_active_at { get; set;  }
         public DateTime? deleted_at { get; set; }
 
-       
+        // Account settings. Database defaults (used for existing rows) are configured in AppDbContext.
+        public bool email_notifications_enabled { get; set; } = true;
+        public bool reservation_reminders_enabled { get; set; } = true;
+        public Shared.Theme theme { get; set; } = Shared.Theme.SYSTEM;
+
 
     }
 }

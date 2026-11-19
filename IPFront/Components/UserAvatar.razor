@@ -1,12 +1,14 @@
-﻿<div class="user-profile-pill">
+﻿@* A plain <a> is intercepted by the Blazor router (client-side navigation, no reload)
+   and, unlike <NavLink>, receives this component's scoped-CSS attribute. *@
+<a href="/profile" class="user-profile-pill" title="View your profile">
     <div class="avatar-circle">
         @if (!string.IsNullOrWhiteSpace(dateUtilizator?.profile_image_url))
         {
-            <img src="@dateUtilizator.profile_image_url" alt="User avatar" class="avatar-photo" />
+            <img src="@dateUtilizator.profile_image_url" alt="" class="avatar-photo" />
         }
         else
         {
-            <img src="images/icon-profile.svg" alt="User avatar" class="avatar-icon" />
+            <img src="images/icon-profile.svg" alt="" class="avatar-icon" />
         }
     </div>
     <div class="user-info">
@@ -21,8 +23,9 @@
             <span class="user-role">Not signed in</span>
         }
     </div>
-</div>
+</a>
 
 @code {
+    /// <summary>User shown in the header; null renders a guest placeholder.</summary>
     [Parameter] public UserMinDTO? dateUtilizator { get; set; }
 }
