@@ -1,0 +1,34 @@
+@saxafon_HostAddress = http://localhost:5255
+
+GET {{saxafon_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
+
+GET {{saxafon_HostAddress}}/api/User
+Accept : application/json 
+
+###
+GET {{saxafon_HostAddress}}/api/User/getUser?id=2
+Accept: application/json
+
+
+###
+POST {{saxafon_HostAddress}}/api/User/register
+Content-Type: application/json
+{
+    "first_name": "Test",
+    "last_name": "User", 
+    "email": "test@coai1e.com",
+    "user_name": "testuser1",
+    "phone_number": "123154321",
+    "password": "testpassword"
+
+}
+###
+POST {{saxafon_HostAddress}}/api/User/login
+Content-Type: application/json
+{
+    "email_or_username": "test@coaie.com",
+    "password": "testpassword"
+}
