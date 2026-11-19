@@ -1,0 +1,140 @@
+/* CSS for SideNav component */
+/* File: Sidebar.razor.css */
+
+.sidebar {
+    width: 240px;
+    background-color: #FFFFFF;
+    border-right: 1px solid #E5E7EB;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 14px;
+    flex-shrink: 0;
+}
+
+.sidebar-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 8px 24px 8px;
+}
+
+.logo-box {
+    width: 34px;
+    height: 34px;
+    background-color: #1F2328;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.logo-img {
+    width: 18px;
+    height: 18px;
+    filter: brightness(0) invert(1); /* Face iconița albă pe fundalul închis */
+}
+
+.logo-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.brand-name {
+    font-weight: 600;
+    font-size: 16px;
+    color: #111827;
+    line-height: 1.2;
+}
+
+.brand-sub {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: #6B7280;
+    margin-top: 2px;
+}
+
+.sidebar-section {
+    flex: 1;
+}
+
+.section-label {
+    display: block;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: #9CA3AF;
+    padding: 0 10px 10px 10px;
+}
+
+.nav-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+/* ::deep is required because <NavLink> renders an <a> child component */
+::deep .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: 6px;
+    color: #374151;
+    text-decoration: none;
+    font-size: 13.5px;
+    font-weight: 500;
+    transition: background-color 0.15s;
+}
+
+    ::deep .nav-item:hover {
+        background-color: #F3F4F6;
+    }
+
+    ::deep .nav-item.active {
+        background-color: #E5E7EB;
+        color: #111827;
+        font-weight: 600;
+    }
+
+.nav-icon {
+    width: 17px;
+    height: 17px;
+    flex-shrink: 0;
+    opacity: 0.75;
+}
+
+::deep .nav-item.active .nav-icon {
+    opacity: 1;
+}
+
+.nav-badge {
+    margin-left: auto;
+    font-size: 12px;
+    color: #6B7280;
+    font-weight: 500;
+}
+
+.sidebar-footer {
+    border-top: 1px solid #F3F4F6;
+    padding-top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+::deep .help-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 8px;
+    color: #4B5563;
+    text-decoration: none;
+    font-size: 13px;
+}
+
+.campus-label {
+    font-size: 11.5px;
+    color: #9CA3AF;
+    padding: 0 8px;
+}

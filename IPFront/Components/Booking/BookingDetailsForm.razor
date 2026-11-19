@@ -1,0 +1,170 @@
+<section class="workspace-card">
+    <div class="card-header">
+        <h2>Booking details</h2>
+        <span class="muted-meta">* Required fields</span>
+    </div>
+
+    <EditForm Model="Form" OnValidSubmit="HandleSubmitAsync" class="booking-form">
+        <div class="form-row-three">
+            <div class="form-field">
+                <label for="booking-date">Date *</label>
+                <input id="booking-date"
+                       type="date"
+                       class="form-input"
+                       value="@Form.Date.ToString("yyyy-MM-dd")"
+                       min="@DateTime.Today.ToString("yyyy-MM-dd")"
+                       @onchange="HandleDateChangedAsync" />
+            </div>
+
+            <div class="form-field">
+                <label for="booking-start">Start time *</label>
+                <div class="input-with-icon">
+                    <img src="images/icon-clock.svg" alt="" class="field-icon" />
+                    <select id="booking-start"
+                            class="form-select"
+                            value="@Form.StartTime.ToString(@"hh\:mm")"
+                            @onchange="HandleStartTimeChangedAsync">
+                        @foreach (var time in AvailableStartTimes)
+                        {
+                            <option value="@time.ToString(@"hh\:mm")">@time.ToString(@"hh\:mm")</option>
+                        }
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-field">
+                <label for="booking-end">End time *</label>
+                <div class="input-with-icon">
+                    <img src="images/icon-clock.svg" alt="" class="field-icon" />
+                    <select id="booking-end"
+                            class="form-select"
+                            value="@Form.EndTime.ToString(@"hh\:mm")"
+                            @onchange="HandleEndTimeChangedAsync">
+                        @foreach (var time in FilteredEndTimes)
+                        {
+                            <option value="@time.ToString(@"hh\:mm")">@time.ToString(@"hh\:mm")</option>
+                        }
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label for="booking-purpose">Purpose of use *</label>
+            <textarea id="booking-purpose"
+                      rows="3"
+                      maxlength="300"
+                      class="form-textarea"
+                      placeholder="Describe the purpose of your lab session..."
+                      @bind="Form.Purpose"></textarea>
+        </div>
+
+        <div class="form-row-bottom">
+            @if (RoomCapacity.HasValue)
+            {
+                <div class="form-field attendees-field">
+                    <label for="booking-attendees">Expected attendees (max @RoomCapacity)</label>
+                    <input id="booking-attendees"
+                           type="number"
+                           min="1"
+                           max="@RoomCapacity"
+                           class="form-input"
+                           @bind="Form.ExpectedAttendees" />
+                </div>
+            }
+
+            <div class="duration-summary">
+                Total duration: <strong>@TotalDurationLabel</strong>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+        {
+            <div class="submission-feedback error">@ErrorMessage</div>
+        }
+        else if (!string.IsNullOrWhiteSpace(SuccessMessage))
+        {
+            <div class="submission-feedback success">
+                <span>@SuccessMessage</span>
+                <a href="/my-reservations" class="feedback-link">View My Reservations</a>
+            </div>
+        }
+
+        <div class="form-footer">
+            <div class="approval-note">
+                @if (RequiresApproval)
+                {
+                    <img src="images/icon-exclamation.svg" alt="Info" class="inline-icon" />
+                    <span>This booking requires administrator approval before it is confirmed.</span>
+                }
+            </div>
+
+            <button type="submit"
+                    class="btn-submit"
+                    disabled="@(IsSubmitting || !CanSubmit)">
+                @(IsSubmitting ? "Submitting..." : "Submit Booking Request")
+            </button>
+        </div>
+    </EditForm>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public BookingFormModel Form { get; set; } = default!;
+    [Parameter, EditorRequired] public IReadOnlyList<TimeSpan> AvailableStartTimes { get; set; } = [];
+    [Parameter, EditorRequired] public IReadOnlyList<TimeSpan> AvailableEndTimes { get; set; } = [];
+    [Parameter] public int? RoomCapacity { get; set; }
+    [Parameter] public bool RequiresApproval { get; set; }
+    [Parameter] public bool CanSubmit { get; set; } = true;
+    [Parameter] public bool IsSubmitting { get; set; }
+    [Parameter] public string? ErrorMessage { get; set; }
+    [Parameter] public string? SuccessMessage { get; set; }
+
+    [Parameter] public EventCallback OnSelectionChanged { get; set; }
+    [Parameter] public EventCallback OnSubmit { get; set; }
+
+    private IEnumerable<TimeSpan> FilteredEndTimes
+        => AvailableEndTimes.Where(t => t > Form.StartTime);
+
+    private string TotalDurationLabel
+    {
+        get
+        {
+            var diff = Form.EndTime - Form.StartTime;
+            if (diff <= TimeSpan.Zero) return "0 hours";
+            return diff.TotalHours == 1 ? "1 hour" : $"{diff.TotalHours:0.#} hours";
+        }
+    }
+
+    private async Task HandleDateChangedAsync(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var parsed))
+        {
+            Form.Date = parsed.Date;
+            await OnSelectionChanged.InvokeAsync();
+        }
+    }
+
+    private async Task HandleStartTimeChangedAsync(ChangeEventArgs e)
+    {
+        if (TimeSpan.TryParse(e.Value?.ToString(), out var parsed))
+        {
+            Form.StartTime = parsed;
+            if (Form.EndTime <= Form.StartTime)
+            {
+                Form.EndTime = Form.StartTime.Add(TimeSpan.FromHours(1));
+            }
+            await OnSelectionChanged.InvokeAsync();
+        }
+    }
+
+    private async Task HandleEndTimeChangedAsync(ChangeEventArgs e)
+    {
+        if (TimeSpan.TryParse(e.Value?.ToString(), out var parsed))
+        {
+            Form.EndTime = parsed;
+            await OnSelectionChanged.InvokeAsync();
+        }
+    }
+
+    private Task HandleSubmitAsync() => OnSubmit.InvokeAsync();
+}

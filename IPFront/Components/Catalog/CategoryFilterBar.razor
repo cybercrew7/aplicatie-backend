@@ -1,0 +1,31 @@
+@if (Categories.Count > 0)
+{
+    <section class="filter-bar">
+        <span class="filter-label">Filter by</span>
+        <div class="filter-chips">
+            @foreach (var category in Categories)
+            {
+                var isSelected = SelectedCategories.Contains(category);
+                <button type="button"
+                        class="filter-chip @(isSelected ? "active" : string.Empty)"
+                        @onclick="() => OnCategoryToggled.InvokeAsync(category)">
+                    @category
+                </button>
+            }
+
+            @if (SelectedCategories.Count > 0)
+            {
+                <button type="button" class="filter-clear" @onclick="() => OnClearFilters.InvokeAsync()">
+                    Clear
+                </button>
+            }
+        </div>
+    </section>
+}
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<string> Categories { get; set; } = [];
+    [Parameter, EditorRequired] public IReadOnlySet<string> SelectedCategories { get; set; } = new HashSet<string>();
+    [Parameter] public EventCallback<string> OnCategoryToggled { get; set; }
+    [Parameter] public EventCallback OnClearFilters { get; set; }
+}

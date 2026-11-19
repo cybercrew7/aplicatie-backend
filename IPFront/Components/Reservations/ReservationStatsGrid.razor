@@ -1,0 +1,35 @@
+<section class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-card-top">
+            <span class="stat-label">Active Bookings</span>
+            <img src="images/icon-calendar.svg" alt="" class="stat-icon" />
+        </div>
+        <div class="stat-value">@ActiveCount</div>
+        <div class="stat-sub">Approved · @TodaySessionsCount @(TodaySessionsCount == 1 ? "session" : "sessions") today</div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-card-top">
+            <span class="stat-label">Pending Approval</span>
+            <img src="images/icon-clock.svg" alt="" class="stat-icon" />
+        </div>
+        <div class="stat-value">@PendingCount</div>
+        <div class="stat-sub">Awaiting an administrator's decision</div>
+    </div>
+
+    <div class="stat-card">
+        <div class="stat-card-top">
+            <span class="stat-label">Completed</span>
+            <img src="images/icon-check.svg" alt="" class="stat-icon" />
+        </div>
+        <div class="stat-value">@CompletedCount</div>
+        <div class="stat-sub">Completed sessions · all time</div>
+    </div>
+</section>
+
+@code {
+    [Parameter] public int ActiveCount { get; set; }
+    [Parameter] public int TodaySessionsCount { get; set; }
+    [Parameter] public int PendingCount { get; set; }
+    [Parameter] public int CompletedCount { get; set; }
+}

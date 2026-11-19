@@ -1,0 +1,258 @@
+﻿@page "/catalog/{ResourceId:int}"
+@inject NavigationManager NavigationManager
+@inject ResourceApiClient ResourceApi
+@inject ReservationApiClient ReservationApi
+@inject CurrentUserService CurrentUserService
+
+<PageTitle>@(resource?.resource_name ?? "Book Resource") - UniLab</PageTitle>
+
+<div class="resource-details-page">
+    <div class="page-back-row">
+        <a href="/catalog" class="back-link">&larr; Back to catalog</a>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="state-message">Loading resource details...</div>
+    }
+    else if (!string.IsNullOrWhiteSpace(loadError))
+    {
+        <div class="state-message error">@loadError</div>
+    }
+    else if (resource is not null)
+    {
+        <main class="details-layout">
+            <ResourceInfoPanel Resource="resource" Location="@resourceLocation" />
+
+            <div class="booking-workspace">
+                <WeeklyAvailabilityGrid WeekStartDate="currentWeekStart"
+                                        TimeSlots="StartTimeSlots"
+                                        Reservations="resourceReservations"
+                                        MaxConcurrentBookings="resource.max_concurrent_bookings"
+                                        SelectedDate="bookingForm.Date"
+                                        SelectedStartTime="bookingForm.StartTime"
+                                        SelectedEndTime="bookingForm.EndTime"
+                                        OnWeekChanged="ChangeWeek"
+                                        OnSlotRangeSelected="HandleSlotRangeSelected" />
+
+                <BookingDetailsForm Form="bookingForm"
+                                    AvailableStartTimes="StartTimeSlots"
+                                    AvailableEndTimes="EndTimeSlots"
+                                    RoomCapacity="resource.capacity"
+                                    RequiresApproval="resource.is_approval_needed"
+                                    CanSubmit="@(resource.status == Status.ACTIVE)"
+                                    IsSubmitting="isSubmitting"
+                                    ErrorMessage="@submissionError"
+                                    SuccessMessage="@submissionSuccess"
+                                    OnSelectionChanged="HandleFormSelectionChanged"
+                                    OnSubmit="HandleSubmitBookingAsync" />
+            </div>
+        </main>
+    }
+</div>
+
+@code {
+    [Parameter] public int ResourceId { get; set; }
+
+    private static readonly List<TimeSpan> StartTimeSlots = Enumerable.Range(8, 12)
+        .Select(h => TimeSpan.FromHours(h))
+        .ToList();
+
+    private static readonly List<TimeSpan> EndTimeSlots = Enumerable.Range(9, 12)
+        .Select(h => TimeSpan.FromHours(h))
+        .ToList();
+
+    private ResourcesFullDTO? resource;
+    private string resourceLocation = "Campus Lab";
+    private List<ReservationFullDTO> resourceReservations = [];
+
+    private DateTime currentWeekStart = GetStartOfWeek(DateTime.Today);
+    private BookingFormModel bookingForm = new();
+
+    private bool isLoading = true;
+    private bool isSubmitting;
+    private string? loadError;
+    private string? submissionError;
+    private string? submissionSuccess;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadResourceAndScheduleAsync();
+    }
+
+    private async Task LoadResourceAndScheduleAsync()
+    {
+        isLoading = true;
+        loadError = null;
+        submissionError = null;
+        submissionSuccess = null;
+
+        try
+        {
+            var resourceTask = ResourceApi.GetResourceByIdAsync(ResourceId);
+            var reservationsTask = ReservationApi.getReservationByResourceIdAsync(ResourceId);
+            await Task.WhenAll(resourceTask, reservationsTask);
+
+            resource = await resourceTask;
+            if (resource is null)
+            {
+                loadError = "Resource not found.";
+                return;
+            }
+
+            resourceReservations = (await reservationsTask).ToList();
+
+            var lookup = new Dictionary<int, ResourcesFullDTO> { [resource.Id] = resource };
+            if (resource.ParentId.HasValue)
+            {
+                var parent = await ResourceApi.GetResourceByIdAsync(resource.ParentId.Value);
+                if (parent is not null)
+                {
+                    lookup[parent.Id] = parent;
+                }
+            }
+            resourceLocation = ResourceDisplayHelper.GetLocation(resource, lookup);
+
+            InitializeDefaultSelection();
+        }
+        catch (Exception ex)
+        {
+            loadError = $"Could not load resource details: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void InitializeDefaultSelection()
+    {
+        var now = DateTime.Now;
+        var nextHour = now.Hour + 1;
+
+        if (nextHour >= 8 && nextHour <= 19)
+        {
+            bookingForm.Date = DateTime.Today;
+            bookingForm.StartTime = TimeSpan.FromHours(nextHour);
+            bookingForm.EndTime = TimeSpan.FromHours(nextHour + 1);
+        }
+        else
+        {
+            bookingForm.Date = now.Hour >= 19 ? DateTime.Today.AddDays(1) : DateTime.Today;
+            bookingForm.StartTime = TimeSpan.FromHours(9);
+            bookingForm.EndTime = TimeSpan.FromHours(10);
+        }
+
+        currentWeekStart = GetStartOfWeek(bookingForm.Date);
+    }
+
+    private void ChangeWeek(int dayOffset)
+    {
+        currentWeekStart = currentWeekStart.AddDays(dayOffset);
+    }
+
+    private void HandleSlotRangeSelected((DateTime Date, TimeSpan Start, TimeSpan End) selection)
+    {
+        bookingForm.Date = selection.Date;
+        bookingForm.StartTime = selection.Start;
+        bookingForm.EndTime = selection.End;
+        submissionError = null;
+        submissionSuccess = null;
+    }
+
+    private void HandleFormSelectionChanged()
+    {
+        currentWeekStart = GetStartOfWeek(bookingForm.Date);
+        submissionError = null;
+        submissionSuccess = null;
+    }
+
+    private async Task HandleSubmitBookingAsync()
+    {
+        if (resource is null)
+        {
+            return;
+        }
+
+        submissionError = null;
+        submissionSuccess = null;
+
+        var start = bookingForm.Date.Date.Add(bookingForm.StartTime);
+        var end = bookingForm.Date.Date.Add(bookingForm.EndTime);
+
+        if (start < DateTime.Now)
+        {
+            submissionError = "Cannot create a booking in the past.";
+            return;
+        }
+
+        if (end <= start)
+        {
+            submissionError = "End time must be after start time.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(bookingForm.Purpose))
+        {
+            submissionError = "Please enter the purpose of use.";
+            return;
+        }
+
+        var durationMinutes = (end - start).TotalMinutes;
+        if (resource.min_booking_minutes.HasValue && durationMinutes < resource.min_booking_minutes.Value)
+        {
+            submissionError = $"Minimum booking duration is {resource.min_booking_minutes} minutes.";
+            return;
+        }
+
+        if (resource.max_booking_minutes.HasValue && durationMinutes > resource.max_booking_minutes.Value)
+        {
+            submissionError = $"Maximum booking duration is {resource.max_booking_minutes} minutes.";
+            return;
+        }
+
+        if (resource.capacity.HasValue && bookingForm.ExpectedAttendees.HasValue)
+        {
+            if (bookingForm.ExpectedAttendees.Value < 1 || bookingForm.ExpectedAttendees.Value > resource.capacity.Value)
+            {
+                submissionError = $"Expected attendees must be between 1 and {resource.capacity.Value}.";
+                return;
+            }
+        }
+
+        isSubmitting = true;
+        try
+        {
+            var createDto = new ReservationCreateDTO(
+                resource.Id,
+                CurrentUserService.UserId,
+                bookingForm.Purpose.Trim(),
+                start,
+                end,
+                resource.capacity.HasValue ? bookingForm.ExpectedAttendees : null);
+
+            var created = await ReservationApi.CreateReservationAsync(createDto);
+            resourceReservations = (await ReservationApi.getReservationByResourceIdAsync(ResourceId)).ToList();
+            bookingForm.Purpose = string.Empty;
+            bookingForm.ExpectedAttendees = null;
+
+            submissionSuccess = created?.status_rezervare == ReservationStatus.CONFIRMED
+                ? $"Booking BK-{created.id} confirmed!"
+                : $"Booking request BK-{created?.id} submitted for approval.";
+        }
+        catch (Exception ex)
+        {
+            submissionError = ex.Message;
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private static DateTime GetStartOfWeek(DateTime date)
+    {
+        int diff = ((int)date.DayOfWeek + 6) % 7;
+        return date.Date.AddDays(-diff);
+    }
+}

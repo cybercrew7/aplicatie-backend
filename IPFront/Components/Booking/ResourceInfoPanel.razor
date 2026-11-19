@@ -1,0 +1,117 @@
+<aside class="resource-info-card">
+    <section class="info-section">
+        <span class="eyebrow-label">@Category</span>
+        <h1 class="resource-title">@Resource.resource_name</h1>
+
+        @if (!string.IsNullOrWhiteSpace(Resource.description))
+        {
+            <p class="resource-description">@Resource.description</p>
+        }
+
+        @if (Resource.is_approval_needed)
+        {
+            <div class="approval-badge">
+                <img src="images/icon-exclamation.svg" alt="Notice" class="badge-icon" />
+                <span>Approval required</span>
+            </div>
+        }
+    </section>
+
+    <hr class="section-divider" />
+
+    <section class="info-section">
+        <h2 class="section-heading">Specifications</h2>
+        <dl class="specs-list">
+            <div class="spec-row">
+                <dt class="spec-key">Resource ID</dt>
+                <dd class="spec-value">@ResourceDisplayHelper.GetCode(Resource)</dd>
+            </div>
+            <div class="spec-row">
+                <dt class="spec-key">Status</dt>
+                <dd class="spec-value">@Resource.status</dd>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(Resource.equipment_model))
+            {
+                <div class="spec-row">
+                    <dt class="spec-key">Model</dt>
+                    <dd class="spec-value">@Resource.equipment_model</dd>
+                </div>
+            }
+            @if (!string.IsNullOrWhiteSpace(Resource.serial_number))
+            {
+                <div class="spec-row">
+                    <dt class="spec-key">Serial number</dt>
+                    <dd class="spec-value">@Resource.serial_number</dd>
+                </div>
+            }
+            @if (Resource.capacity.HasValue)
+            {
+                <div class="spec-row">
+                    <dt class="spec-key">Capacity</dt>
+                    <dd class="spec-value">@Resource.capacity people</dd>
+                </div>
+            }
+            @if (!string.IsNullOrWhiteSpace(Resource.buildingId))
+            {
+                <div class="spec-row">
+                    <dt class="spec-key">Building</dt>
+                    <dd class="spec-value">@Resource.buildingId</dd>
+                </div>
+            }
+        </dl>
+    </section>
+
+    <hr class="section-divider" />
+
+    <section class="info-section">
+        <h2 class="section-heading">Lab location</h2>
+        <p class="location-primary">@Location</p>
+    </section>
+
+    @if (UsageRules.Count > 0)
+    {
+        <hr class="section-divider" />
+
+        <section class="info-section">
+            <h2 class="section-heading">Usage rules</h2>
+            <ul class="rules-list">
+                @foreach (var rule in UsageRules)
+                {
+                    <li>@rule</li>
+                }
+            </ul>
+        </section>
+    }
+</aside>
+
+@code {
+    [Parameter, EditorRequired] public ResourcesFullDTO Resource { get; set; } = default!;
+    [Parameter] public string Location { get; set; } = "Campus Lab";
+
+    private string Category => ResourceDisplayHelper.GetCategory(Resource);
+
+    private List<string> UsageRules
+    {
+        get
+        {
+            var rules = new List<string>();
+            if (Resource.min_booking_minutes.HasValue)
+            {
+                rules.Add($"Minimum booking duration: {Resource.min_booking_minutes} minutes.");
+            }
+            if (Resource.max_booking_minutes.HasValue)
+            {
+                rules.Add($"Maximum booking duration: {Resource.max_booking_minutes} minutes.");
+            }
+            if (Resource.max_bookings_per_user_per_week.HasValue)
+            {
+                rules.Add($"At most {Resource.max_bookings_per_user_per_week} bookings per user per week.");
+            }
+            if (Resource.max_concurrent_bookings > 1)
+            {
+                rules.Add($"Up to {Resource.max_concurrent_bookings} concurrent bookings allowed.");
+            }
+            return rules;
+        }
+    }
+}

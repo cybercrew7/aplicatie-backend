@@ -1,0 +1,49 @@
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid #E5E7EB;
+    background-color: #F3F4F6;
+    color: #1F2937;
+    white-space: nowrap;
+}
+
+.badge-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: currentColor;
+}
+
+.badge-icon {
+    width: 12px;
+    height: 12px;
+}
+
+.variant-positive {
+    background-color: #ECFDF5;
+    border-color: #A7F3D0;
+    color: #065F46;
+}
+
+.variant-pending {
+    background-color: #FFFBEB;
+    border-color: #FDE68A;
+    color: #92400E;
+}
+
+.variant-muted {
+    background-color: #F3F4F6;
+    border-color: #E5E7EB;
+    color: #6B7280;
+}
+
+.variant-neutral {
+    background-color: #F4F4F5;
+    border-color: #E4E4E7;
+    color: #27272A;
+}

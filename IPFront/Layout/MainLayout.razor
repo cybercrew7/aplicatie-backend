@@ -1,0 +1,39 @@
+﻿@inherits LayoutComponentBase
+@implements IDisposable
+@inject CurrentUserService CurrentUserService
+
+<div class="unilab-shell">
+    <SideNav />
+
+    <div class="main-wrapper">
+        <header class="top-header">
+            <UserAvatar dateUtilizator="currentUser" />
+        </header>
+
+        <main class="page-body">
+            @Body
+        </main>
+    </div>
+</div>
+
+@code {
+    private UserMinDTO? currentUser;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Subscribe before the first await so an update made while loading is not missed.
+        CurrentUserService.OnChange += HandleCurrentUserChanged;
+        currentUser = await CurrentUserService.GetCurrentUserAsync();
+    }
+
+    private void HandleCurrentUserChanged()
+    {
+        currentUser = CurrentUserService.CurrentUser;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        CurrentUserService.OnChange -= HandleCurrentUserChanged;
+    }
+}

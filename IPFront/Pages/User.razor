@@ -1,0 +1,34 @@
+﻿@page "/user"
+
+@inject UserApiClient UserService
+<h3>User</h3>
+
+<button class="btn btn-primary" @onclick="getUsers"> GetUsers </button>
+
+@if (users != null && users.Any())
+{
+    <ul>
+        @foreach (var user in users)
+        {
+            <li>@user.Id - @user.email</li>
+        }
+    </ul>
+}
+else
+{
+    <p>No users found.</p>
+}
+
+
+
+
+@code {
+    private IEnumerable<UserMinDTO>? users;
+
+    private async Task getUsers()
+    {
+        users = await UserService.getUsersAsync();
+        
+        Console.WriteLine("users" + users);
+    }
+}
