@@ -1,0 +1,102 @@
+@* Dismissible feedback notification, pinned to the top-right of the viewport so it stays
+   visible regardless of where on the page the user submitted a form.
+   Success toasts close themselves after AutoDismissMilliseconds; errors stay until dismissed. *@
+@implements IDisposable
+
+@if (Toast is not null)
+{
+    var isError = Toast.Kind == ToastKind.Error;
+
+    <div class="ft-region">
+        <div class="ft-toast @(isError ? "ft-error" : "ft-success")"
+             role="@(isError ? "alert" : "status")"
+             aria-live="@(isError ? "assertive" : "polite")">
+            <span class="ft-icon" aria-hidden="true">
+                @if (isError)
+                {
+                    <img src="images/icon-exclamation.svg" alt="" />
+                }
+                else
+                {
+                    <img src="images/icon-check.svg" alt="" />
+                }
+            </span>
+
+            <div class="ft-body">
+                <div class="ft-title">@Toast.Title</div>
+                @if (!string.IsNullOrWhiteSpace(Toast.Message))
+                {
+                    <div class="ft-message">@Toast.Message</div>
+                }
+            </div>
+
+            <button type="button" class="ft-close" aria-label="Dismiss notification" @onclick="DismissAsync">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    </div>
+}
+
+@code {
+    /// <summary>The notification to show; null renders nothing.</summary>
+    [Parameter] public ToastMessage? Toast { get; set; }
+
+    /// <summary>Raised when the user closes the toast or it times out. The parent should clear <see cref="Toast"/>.</summary>
+    [Parameter] public EventCallback OnDismiss { get; set; }
+
+    /// <summary>How long a success toast stays visible. Zero or less disables auto-dismiss.</summary>
+    [Parameter] public int AutoDismissMilliseconds { get; set; } = 5000;
+
+    private ToastMessage? shownToast;
+    private CancellationTokenSource? dismissTimer;
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(Toast, shownToast))
+        {
+            return;
+        }
+
+        shownToast = Toast;
+        CancelTimer();
+
+        if (Toast is { Kind: ToastKind.Success } && AutoDismissMilliseconds > 0)
+        {
+            dismissTimer = new CancellationTokenSource();
+            _ = AutoDismissAsync(Toast, dismissTimer.Token);
+        }
+    }
+
+    private async Task AutoDismissAsync(ToastMessage toast, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(AutoDismissMilliseconds, cancellationToken);
+        }
+        catch (TaskCanceledException)
+        {
+            return;
+        }
+
+        // Only dismiss the toast this timer was started for.
+        if (ReferenceEquals(toast, shownToast))
+        {
+            await InvokeAsync(() => OnDismiss.InvokeAsync());
+        }
+    }
+
+    private Task DismissAsync()
+    {
+        CancelTimer();
+        return OnDismiss.InvokeAsync();
+    }
+
+    private void CancelTimer()
+    {
+        dismissTimer?.Cancel();
+        dismissTimer?.Dispose();
+        dismissTimer = null;
+    }
+
+    public void Dispose() => CancelTimer();
+}

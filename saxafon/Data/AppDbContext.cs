@@ -36,6 +36,13 @@ namespace saxafon.Data
             modelBuilder.Entity<Reservations>().Property(e => e.status_rezervare).HasConversion(v => v.ToString(), v => (Shared.ReservationStatus)Enum.Parse(typeof(Shared.ReservationStatus), v));
             modelBuilder.Entity<User>().Property(e => e.role).HasConversion(v => v.ToString(), v => (Shared.Role)Enum.Parse(typeof(Shared.Role), v));
 
+            // Settings columns: the DB default backfills existing rows when the column is added.
+            // ValueGeneratedNever() makes EF always send the CLR value on INSERT, so an explicit
+            // `false` is never swallowed by the DB default (the bool "sentinel" pitfall).
+            modelBuilder.Entity<User>().Property(e => e.email_notifications_enabled).HasDefaultValue(true).ValueGeneratedNever();
+            modelBuilder.Entity<User>().Property(e => e.reservation_reminders_enabled).HasDefaultValue(true).ValueGeneratedNever();
+            modelBuilder.Entity<User>().Property(e => e.theme).HasDefaultValue(Shared.Theme.SYSTEM).ValueGeneratedNever();
+
             // Reservations has two navigations to User (owner + approver), so the foreign keys must be explicit.
             modelBuilder.Entity<Reservations>()
                 .HasOne(r => r.user)

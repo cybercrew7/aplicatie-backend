@@ -2,7 +2,27 @@
     display: flex;
     align-items: center;
     gap: 10px;
+    padding: 4px 12px 4px 4px;
+    margin-right: -12px; /* keeps the text aligned with the header edge despite the hover padding */
+    border-radius: 999px;
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
 }
+
+    .user-profile-pill:hover {
+        background-color: #F3F4F6;
+    }
+
+    .user-profile-pill:active {
+        background-color: #E5E7EB;
+    }
+
+    .user-profile-pill:focus-visible {
+        outline: 2px solid #111827;
+        outline-offset: 2px;
+    }
 
 .avatar-circle {
     width: 34px;
@@ -14,6 +34,13 @@
     justify-content: center;
     overflow: hidden;
     flex-shrink: 0;
+    transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* The pill turns the same grey as the circle on hover, so lift the circle to keep it visible. */
+.user-profile-pill:hover .avatar-circle {
+    background-color: #FFFFFF;
+    box-shadow: 0 0 0 1px #E5E7EB;
 }
 
 .avatar-photo {
@@ -43,4 +70,11 @@
 .user-role {
     font-size: 11.5px;
     color: #6B7280;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .user-profile-pill,
+    .avatar-circle {
+        transition: none;
+    }
 }

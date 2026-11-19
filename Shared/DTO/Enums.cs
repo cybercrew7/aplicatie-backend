@@ -28,4 +28,12 @@ namespace Shared
         ACTIVE,
         INACTIVE
     }
+
+    public enum Theme
+    {
+        // for User settings (UI appearance). SYSTEM follows the OS/browser preference.
+        SYSTEM,
+        LIGHT,
+        DARK
+    }
 }
