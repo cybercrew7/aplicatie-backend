@@ -1,8 +1,8 @@
 .catalog-page {
     display: flex;
     flex-direction: column;
-    background-color: #ffffff;
-    color: #18181b;
+    background-color: transparent;
+    color: #0F172A;
     min-height: calc(100vh - 64px);
 }
 
@@ -10,7 +10,7 @@
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
-    padding: 2rem;
+    padding: 0.5rem 0.25rem 2rem 0.25rem;
     max-width: 1280px;
     width: 100%;
     margin: 0 auto;
@@ -27,28 +27,35 @@
 .page-title-group h1 {
     margin: 0 0 0.35rem 0;
     font-size: 1.75rem;
-    font-weight: 600;
+    font-weight: 700;
+    color: #0F172A;
+    letter-spacing: -0.02em;
 }
 
 .page-title-group p {
     margin: 0;
     font-size: 0.925rem;
-    color: #71717a;
+    color: #475569;
 }
 
 .btn-outline {
-    padding: 0.6rem 1.1rem;
-    border: 1px solid #27272a;
+    padding: 0.6rem 1.15rem;
+    border: 1.5px solid #4F46E5;
     border-radius: 8px;
-    background: #ffffff;
-    font-weight: 500;
+    background: #FFFFFF;
+    color: #4F46E5;
+    font-weight: 600;
     font-size: 0.875rem;
     cursor: pointer;
     white-space: nowrap;
+    box-shadow: 0 2px 6px rgba(79, 70, 229, 0.12);
+    transition: all 0.15s ease;
 }
 
     .btn-outline:hover {
-        background-color: #f4f4f5;
+        background-color: #4F46E5;
+        color: #FFFFFF;
+        box-shadow: 0 4px 12px rgba(79, 70, 229, 0.28);
     }
 
 .stats-bar {
@@ -56,9 +63,11 @@
     align-items: center;
     flex-wrap: wrap;
     gap: 1.25rem;
-    padding: 0.9rem 1.25rem;
-    border: 1px solid #e4e4e7;
-    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    background-color: #FFFFFF;
+    border: 1px solid #CBD5E1;
+    border-radius: 12px;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
 }
 
 .stat-item {
@@ -70,24 +79,27 @@
 
 .stat-value {
     font-size: 1.15rem;
-    font-weight: 600;
+    font-weight: 700;
+    color: #4F46E5;
 }
 
 .stat-label {
-    color: #71717a;
+    color: #475569;
+    font-weight: 500;
 }
 
 .status-dot {
-    width: 7px;
-    height: 7px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
-    background-color: #10b981;
+    background-color: #0D9488;
+    box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.2);
 }
 
 .vertical-divider {
     width: 1px;
-    height: 18px;
-    background-color: #e4e4e7;
+    height: 20px;
+    background-color: #CBD5E1;
 }
 
 .search-wrapper {
@@ -98,11 +110,18 @@
     flex: 1;
     min-width: 220px;
     max-width: 400px;
-    padding: 0.45rem 0.75rem;
-    border: 1px solid #e4e4e7;
+    padding: 0.5rem 0.85rem;
+    border: 1px solid #CBD5E1;
     border-radius: 8px;
-    background-color: #fafafa;
+    background-color: #F8FAFC;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
+
+    .search-wrapper:focus-within {
+        border-color: #4F46E5;
+        background-color: #FFFFFF;
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+    }
 
 .search-input {
     border: none;
@@ -110,6 +129,7 @@
     background: transparent;
     width: 100%;
     font-size: 0.9rem;
+    color: #0F172A;
 }
 
 .input-icon {
@@ -133,12 +153,14 @@
     .results-heading h2 {
         margin: 0;
         font-size: 1.1rem;
-        font-weight: 600;
+        font-weight: 700;
+        color: #0F172A;
     }
 
 .results-count {
     font-size: 0.85rem;
-    color: #71717a;
+    color: #475569;
+    font-weight: 500;
 }
 
 .sort-control {
@@ -146,14 +168,19 @@
     align-items: center;
     gap: 0.5rem;
     font-size: 0.85rem;
-    color: #71717a;
+    color: #475569;
+    background-color: #FFFFFF;
+    padding: 0.4rem 0.8rem;
+    border-radius: 8px;
+    border: 1px solid #CBD5E1;
 }
 
 .sort-select {
     border: none;
+    outline: none;
     background: transparent;
-    font-weight: 500;
-    color: #18181b;
+    font-weight: 600;
+    color: #4F46E5;
     cursor: pointer;
 }
 
@@ -166,9 +193,14 @@
 .state-message {
     padding: 2rem;
     text-align: center;
-    color: #71717a;
+    background-color: #FFFFFF;
+    border-radius: 12px;
+    border: 1px solid #CBD5E1;
+    color: #475569;
 }
 
     .state-message.error {
-        color: #dc2626;
+        color: #DC2626;
+        border-color: #FECACA;
+        background-color: #FEF2F2;
     }
